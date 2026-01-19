@@ -630,6 +630,91 @@ AnalyzeObsFile(settings)
 end
 
 
+% Auto-Recommend Thresholds Pushbutton
+function pushbutton_auto_recommend_thresholds_Callback(hObject, eventdata, handles)
+% This function automatically recommends optimal thresholds for 
+% Doppler cycle slip detection and Code/Phase standard deviations
+
+fprintf('\n=========================================================\n');
+fprintf('  Auto-Recommend Thresholds\n');
+fprintf('=========================================================\n\n');
+
+% Get settings from GUI
+try
+    settings = getSettingsFromGUI(handles);
+catch
+    errordlg('Please set observation file first.', 'Error');
+    return;
+end
+
+% Check if observation file exists
+if ~isfile(settings.INPUT.file_obs)
+    errordlg('Observation file not found. Please set observation file first.', 'Error');
+    return;
+end
+
+fprintf('Observation file: %s\n', settings.INPUT.file_obs);
+
+% Add path to auto-recommend function
+addpath([pwd, '/CODE/OTHERS']);
+
+try
+    % Call auto-recommend function
+    [recommended, quality_report] = autoRecommendThresholds(settings);
+    
+    % Display results in command window
+    fprintf('\n=========================================================\n');
+    fprintf('  RECOMMENDATIONS\n');
+    fprintf('=========================================================\n');
+    fprintf('Device Type: %s\n', quality_report.device_type);
+    fprintf('Observation Interval: %.1f [s]\n', quality_report.obs_interval);
+    fprintf('\n--- Apply in GUI ---\n');
+    fprintf('1. Go to: Models → Other Corrections\n');
+    fprintf('   • Check "Doppler Shift"\n');
+    fprintf('   • Threshold: %.2f [cycles]\n', recommended.OTHER.CS.D_threshold);
+    fprintf('\n2. Go to: Estimation → Weighting\n');
+    fprintf('   • Code: %.3f [m]\n', sqrt(recommended.ADJ.var_code));
+    fprintf('   • Phase: %.3f [m]\n', sqrt(recommended.ADJ.var_phase));
+    fprintf('=========================================================\n\n');
+    
+    % Optional: Auto-apply to GUI (commented out by default)
+    % Uncomment the following lines to auto-apply:
+    % 
+    % set(handles.checkbox_CycleSlip_Doppler, 'Value', 1);
+    % set(handles.edit_CycleSlip_Doppler_threshold, 'String', ...
+    %     num2str(recommended.OTHER.CS.D_threshold));
+    % set(handles.edit_Std_CA_Code, 'String', ...
+    %     sprintf('%.3f', sqrt(recommended.ADJ.var_code)));
+    % set(handles.edit_Std_Phase, 'String', ...
+    %     sprintf('%.3f', sqrt(recommended.ADJ.var_phase)));
+    
+catch ME
+    fprintf('Error: %s\n', ME.message);
+    fprintf('\nTrying basic recommendation...\n');
+    
+    % Fallback to basic recommendations
+    receiver_type = lower(obs.receiver_type);
+    is_smartphone = contains(receiver_type, {'android', 'smartphone'}) || ...
+                    contains(obs.receiver_type, {'Unknown'}) && obs.rinex_version == 0;
+    
+    if is_smartphone
+        fprintf('Smartphone detected. Recommended values:\n');
+        fprintf('  Doppler threshold: 2.0 [cycles]\n');
+        fprintf('  Code std: 1.000 [m]\n');
+        fprintf('  Phase std: 0.010 [m]\n');
+    else
+        fprintf('Geodetic/Navigation receiver detected. Recommended values:\n');
+        fprintf('  Doppler threshold: 1.0 [cycles]\n');
+        fprintf('  Code std: 0.500 [m]\n');
+        fprintf('  Phase std: 0.003 [m]\n');
+    end
+end
+
+rmpath([pwd, '/CODE/OTHERS']);
+guidata(hObject, handles);
+end
+
+
 % GPS Checkbox
 function checkbox_GPS_Callback(hObject, eventdata, handles)
 
@@ -3645,6 +3730,8 @@ function radiobutton_Elevation_Dependency_Callback(hObject, eventdata, handles)
 end
 function radiobutton_Signal_Strength_Dependency_Callback(hObject, eventdata, handles)
 end
+function radiobutton_SNR_Elevation_Dependency_Callback(hObject, eventdata, handles)
+end
 
 % STD code observations
 function edit_Std_CA_Code_Callback(hObject, eventdata, handles)
@@ -4324,7 +4411,7 @@ else
         choice = questdlg({'Single Plotting with Multi-Plot Table:',...
             'Multi-Plot Table contains more than one station!'}, ...
             'ATTENTION', ...
-            'Stop', 'Let�s try', 'Stop');
+            'Stop', 'Let�s try', 'Stop');
         if strcmp(choice, 'Stop') || isempty(choice); return; end
     end
     

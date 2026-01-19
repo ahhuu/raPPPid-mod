@@ -91,28 +91,36 @@ dX_GDV_(1) = interp1(GDV(:,1), GDV(:,2), el);
 dX_GDV_(2) = interp1(GDV(:,1), GDV(:,3), el);
 dX_GDV_(3) = interp1(GDV(:,1), GDV(:,4), el);
 
-
 %% consider processed frequency
 if strcmpi(IONO_model,'2-Frequency-IF-LCs')
-    % convert to frequency of 2-Frequency-IF-LCs
-    dX_GDV(1) = -(f1^2*dX_GDV_(j(1))-f2^2*dX_GDV_(j(2))) / (f1^2-f2^2);
-    if n > 1
-        dX_GDV(2) = (f2^2*dX_GDV_(j(2))-f3^2*dX_GDV_(j(3))) / (f2^2-f3^2);
+    % 过滤无效索引
+    valid_j = j(j <= length(dX_GDV_));
+    if length(valid_j) >= 2
+        dX_GDV(1) = -(f1^2*dX_GDV_(valid_j(1))-f2^2*dX_GDV_(valid_j(2))) / (f1^2-f2^2);
+        if n > 1 && length(valid_j) >= 3
+            dX_GDV(2) = (f2^2*dX_GDV_(valid_j(2))-f3^2*dX_GDV_(valid_j(3))) / (f2^2-f3^2);
+        end
     end
     dX_GDV(3) = 0;
     
 elseif strcmpi(IONO_model,'3-Frequency-IF-LC')
-    y2 = f1.^2 ./ f2.^2;            % coefficients of 3-Frequency-IF-LC
-    y3 = f1.^2 ./ f3.^2;
-    e1 = (y2.^2 +y3.^2  -y2-y3) ./ (2.*(y2.^2 +y3.^2 -y2.*y3 -y2-y3+1));
-    e2 = (y3.^2 -y2.*y3 -y2 +1) ./ (2.*(y2.^2 +y3.^2 -y2.*y3 -y2-y3+1));
-    e3 = (y2.^2 -y2.*y3 -y3 +1) ./ (2.*(y2.^2 +y3.^2 -y2.*y3 -y2-y3+1));
-    % convert to frequency of 3-Frequency-IF-LC
-    dX_GDV(1) = e1.*dX_GDV_(j(1)) + e2.*dX_GDV_(j(2)) + e3.*dX_GDV_(j(3));
+    % 过滤无效索引
+    valid_j = j(j <= length(dX_GDV_));
+    if length(valid_j) >= 3
+        y2 = f1.^2 ./ f2.^2;            % coefficients of 3-Frequency-IF-LC
+        y3 = f1.^2 ./ f3.^2;
+        e1 = (y2.^2 +y3.^2  -y2-y3) ./ (2.*(y2.^2 +y3.^2 -y2.*y3 -y2-y3+1));
+        e2 = (y3.^2 -y2.*y3 -y2 +1) ./ (2.*(y2.^2 +y3.^2 -y2.*y3 -y2-y3+1));
+        e3 = (y2.^2 -y2.*y3 -y3 +1) ./ (2.*(y2.^2 +y3.^2 -y2.*y3 -y2-y3+1));
+        % convert to frequency of 3-Frequency-IF-LC
+        dX_GDV(1) = e1.*dX_GDV_(valid_j(1)) + e2.*dX_GDV_(valid_j(2)) + e3.*dX_GDV_(valid_j(3));
+    end
     dX_GDV(2) = 0;
     dX_GDV(3) = 0;
     
 else
-    % resort depending on processed frequenceis
-    dX_GDV(1:numel(j)) = dX_GDV_(j);
+    % 过滤无效索引
+    valid_j = j(j <= length(dX_GDV_));
+    % 使用有效索引赋值
+    dX_GDV(1:numel(valid_j)) = dX_GDV_(valid_j);
 end

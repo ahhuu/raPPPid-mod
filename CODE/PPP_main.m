@@ -432,6 +432,17 @@ if settings.EXP.data4plot
     end
 end
 
+% 检查是否需要输出伪距残差、高度角、信噪比信息
+if settings.EXP.residuals_output
+    outputPath = fullfile(settings.PROC.output_dir, 'residuals_info.txt');
+    createResidualsOutput(settings, storeData, satellites, settings.PROC.epochs, outputPath);
+end
+
+% 检查是否需要输出卫星坐标信息
+if settings.EXP.SatelliteCoordinates_output
+    createSatelliteCoordinatesOutput(Epoch, input, settings);
+end
+
 % push to workspace
 assignin('base',     'obs',         obs        )
 assignin('base',     'settings',    settings   )
@@ -458,7 +469,6 @@ end
 
 % Open enabled plots after processing is finished
 SinglePlotting(satellites, storeData, obs, settings)    % open enabled plots
-
 
 % end of PPP_main(...)
 % *************************************************************************

@@ -795,6 +795,11 @@ try     % write C/N0 weighting function to text-field
     end
     set(handles.edit_snr_weighting_function,  'String', strrep(func2str(structure.ADJ.snr_weight_fun), '@(snr)', ''));
 end
+% 新增：设置 SNR 和高度角联合加权的单选按钮状态
+set(handles.radiobutton_SNR_Elevation_Dependency, 'Value', structure.ADJ.weight_snr_elev);
+try
+    set(handles.edit_snr_elev_weighting_function, 'String', strrep(func2str(structure.ADJ.snr_elev_weight_fun), '@(snr, e)', ''));
+end
 try
     set(handles.radiobutton_No_Dependency,          'Value', structure.ADJ.weight_none );
 end

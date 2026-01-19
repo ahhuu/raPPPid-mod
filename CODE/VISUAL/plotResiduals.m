@@ -178,24 +178,33 @@ if settings.INPUT.use_GPS || settings.INPUT.use_GLO || settings.INPUT.use_GAL ||
         gps_prns, glo_prns, gal_prns, bds_prns, qzss_prns, strcmpi(settings.PROC.method,'Code + Phase'))
 end
 
+%% residuals over C/N0 for all frequencies
+%ivall = 3;      % to make plot clearer
+%code_residuals(abs(code_residuals)<=10^-4) = NaN;       % due to numerical reasons
 
-
-%% residuals over C/N0, frequency 1
-% ||| experimental
-
-% ivall = 3;      % to make plot clearer
-% code_residuals(abs(code_residuals)<=10^-4) = NaN;       % due to numerical reasons
-% figure('Name', 'Residuals over C/N0, frequency 1', 'NumberTitle','off');
-% plot(SNR_1(1:ivall:end,:), code_residuals(1:ivall:end,:,1), '.')
-% prns = 1:399;
-% prns = prns(any(~isnan(code_residuals(:,:,1))));
-% prns_string = sprintfc('%02.0f', prns);
-% legend(prns_string)
-% ylabel('Residuals [m]')
-% xlabel('C/N0 [dB-Hz]')
-% title('Residuals over C/N0, frequency 1')
-
+for j = 1:n
+    % get SNR for current frequency
+    field = sprintf('SNR_%d', j);
+    SNR_j = full(satellites.(field));
+    
+    % create figure
+    fig_name = sprintf('Residuals over C/N0, frequency %d', j);
+    figure('Name', fig_name, 'NumberTitle','off');
+    
+    % plot code residuals over C/N0
+    plot(SNR_j(1:end,:), code_residuals(1:end,:,j), '.')
+    
+    % get prns with non-NaN residuals
+    prns = 1:size(code_residuals, 2);
+    prns = prns(any(~isnan(code_residuals(:,:,j))));
+    prns_string = sprintfc('%02.0f', prns);
+    
+    % add legend
+    legend(prns_string)
+    
+    % add labels and title
+    ylabel('Residuals [m]')
+    xlabel('C/N0 [dB-Hz]')
+    title(fig_name)
 end
-
-
-
+end

@@ -29,6 +29,8 @@ function [dT_clk, noclock] = satelliteClock(sv, Ttr, input, ...
 
 %% Preparations
 noclock = false;
+preciseClk = [];  % 初始化 preciseClk 为空
+
 if isGPS
     if settings.ORBCLK.bool_brdc
         Eph = input.ORBCLK.Eph_GPS;
@@ -76,6 +78,14 @@ end
 
 %% calculation of satellite clock
 if settings.ORBCLK.bool_clk       % precise satellite clock enabled
+    % 检查 preciseClk 是否有效
+    if isempty(preciseClk) || ~isstruct(preciseClk) || ~isfield(preciseClk, 't') || ~isfield(preciseClk, 'dT')
+        fprintf('Warning: No precise clock data available for satellite %d\n', sv);
+        dT_clk = 0;
+        noclock = true;
+        return;
+    end
+    
     % --- calculate clock correction from precise clock file
     % Fast Interpolation of precise clock information:
     % cut noPoints sampling points around Ttr to accelerate interpolation
@@ -92,6 +102,15 @@ if settings.ORBCLK.bool_clk       % precise satellite clock enabled
     else                                            % enough data around
         time_idxs = (idx-points/2) : (idx+points/2);% take data around point in time
     end
+    
+    % 检查卫星编号是否超出范围
+    if sv > size(preciseClk.dT, 2)
+        dT_clk = 0;
+        noclock = true;
+        fprintf('Invalid satellite number %d for precise clock data.\n', sv);
+        return;
+    end
+    
     t_prec_clk = preciseClk.t(time_idxs);           % time of precise clocks
     value_prec_clk = preciseClk.dT(time_idxs,sv);   % values of precise clocks
     if any(value_prec_clk==0)

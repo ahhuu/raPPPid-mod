@@ -24,12 +24,22 @@ function [X, V, cutoff, status] = prec_satpos(precEph, prn, sv, Ttr, cutoff, sta
 % This function belongs to raPPPid, Copyright (c) 2023, M.F. Glaner
 % *************************************************************************
 
+% 检查卫星编号是否超出范围
+if sv > size(precEph.t, 2)
+    if bool_print
+        fprintf('Invalid satellite number %d for precise ephemeris data.\n', sv);
+    end
+    X = NaN(3,1); V = NaN(3,1);
+    cutoff = true;
+    status(:) = 6;
+    return;
+end
 
 % check if interpolation is possible at all
 if all(precEph.t(:,sv) == 0)     % no precise ephemeris data for this satellite at all
-%     if bool_print
-%         fprintf('\nNo precise orbit data for satellite %d in SOW %.3f              \n', prn, Ttr);
-%     end
+    if bool_print
+        fprintf('\nNo precise orbit data for satellite %d in SOW %.3f              \n', prn, Ttr);
+    end
     X = NaN(3,1); V = NaN(3,1);
     cutoff = true;
     status(:) = 6;

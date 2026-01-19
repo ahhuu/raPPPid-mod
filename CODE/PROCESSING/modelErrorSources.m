@@ -192,9 +192,21 @@ for i_sat = 1:num_sat
         j = idx_frqs_bds;
         PCO_rec = input.OTHER.PCO.rec_BDS;
         PCV_rec = input.OTHER.PCV.rec_BDS;
+        if sv <= size(input.OTHER.PCV.sat_BDS, 2)
         PCV_sat = input.OTHER.PCV.sat_BDS(:,sv);
+        else
+            % 处理索引超出范围的情况
+            warning('Index out of bounds in modelErrorSources. Check the number of columns in input.OTHER.PCV.sat_BDS and the value of sv.');
+            PCV_sat = zeros(size(input.OTHER.PCV.sat_BDS, 1), 1); 
+        end
         % PCO satellite
+        if sv <= size(input.OTHER.PCV.sat_BDS, 1)
         offset_LL = input.OTHER.PCO.sat_BDS(sv, 2:4, 1:6);
+        else
+            % 处理索引超出范围的情况
+            warning('Index out of bounds in modelErrorSources. Check the number of columns in input.OTHER.PCV.sat_BDS and the value of sv.');
+            offset_LL = zeros(3, 6, 1); 
+        end
         offset_LL = reshape(offset_LL,3,6,1);
     elseif isQZSS
         j = idx_frqs_qzss;

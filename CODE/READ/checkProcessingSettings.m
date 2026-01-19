@@ -562,6 +562,37 @@ if settings.ADJ.weight_sign_str && isa(settings.ADJ.snr_weight_fun,'function_han
     end
 end
 
+% 检查联合函数
+if settings.ADJ.weight_snr_elev
+    if ~isa(settings.ADJ.snr_elev_weight_fun, 'function_handle')
+        errordlg({'请选择有效的 SNR 和高度角联合加权函数。'}, '参数错误');
+        valid_settings = false;
+        return
+    end
+        
+    % 检查变量使用（大小写不敏感）
+    fun_str = func2str(settings.ADJ.snr_elev_weight_fun);
+    if ~contains(lower(fun_str), 'snr') || ~contains(lower(fun_str), 'e')
+        errordlg({'联合函数必须包含 "SNR" 和 "e" 变量。'}, '参数错误');
+        valid_settings = false;
+        return
+    end
+        
+    % 检查函数是否能正常运行
+    try
+        settings.ADJ.snr_elev_weight_fun([30 40], [10*pi/180, 20*pi/180]);  % 使用弧度
+    catch ME
+        % 捕获详细的错误信息
+        errordlg({
+            '联合函数计算失败，请检查语法！',
+            ['错误类型: ', ME.identifier],
+            ['错误信息: ', ME.message]
+        }, windowname);
+        valid_settings = false;
+        return
+    end
+end
+
 % check is reset of solution is valid
 if settings.PROC.reset_float && isnan(settings.PROC.reset_after)
     errordlg('Check reset of solution.', windowname)

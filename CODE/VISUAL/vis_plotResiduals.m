@@ -10,7 +10,7 @@ function vis_plotResiduals(epochs, resets, hours, x_label, Code_res, Phase_res, 
 %   prns            observed prns
 %   txtcell         cell, strings for GNSS, GNSS-letter and solution
 %   Elev            matrix, satellite elevations, epochs x satellites
-%   cutoff          cutoff angle, settings from GUI, [°]
+%   cutoff          cutoff angle, settings from GUI, [¡ã]
 %   rgb             colors for plotting
 % OUTPUT:
 %   []
@@ -74,7 +74,7 @@ for j = 1:no_frqs     % loop to plot all processed frequencies
     hline(0, 'k-')              % plot x-axis
     title({['Code-Residuals over Elevation, ' floatfix ', ', gnss, ', ' frequ]},'fontsize', 10);
     ylabel('Residuals [m]')
-    xlabel('Elevation [°]')
+    xlabel('Elevation [¡ã]')
     max_c = max(abs(Code_res_j(:)));
     if isnan(max_c);        max_c = 1;    end
     xlim([-Inf 90]);
@@ -96,7 +96,7 @@ for j = 1:no_frqs     % loop to plot all processed frequencies
         hline(0, 'k-')          % plot x-axis
         title({['Phase-Residuals over Elevation, ' floatfix ', ', gnss, ', ' frequ]},'fontsize', 10);
         ylabel('Residuals [m]')
-        xlabel('Elevation [°]')
+        xlabel('Elevation [¡ã]')
         max_p = max(abs(Phase_res_j(:)));
         if isnan(max_p);        max_p = 1;    end
         xlim([-Inf 90]);
@@ -192,7 +192,7 @@ function output_txt = vis_customdatatip_res_elev(obj,event_obj)
 %
 % *************************************************************************
 
-% get position of click (x-value = elevation [°], y-value = residual [m])
+% get position of click (x-value = elevation [¡ã], y-value = residual [m])
 pos = get(event_obj,'Position');
 el = pos(1);
 val = pos(2);
@@ -200,6 +200,5 @@ val = pos(2);
 sat = event_obj.Target.DisplayName;
 sat = strrep(sat, 'data', 'PRN: ');
 output_txt{1} = sat;               % name of clicked line e.g. satellite
-output_txt{2} = ['Elevation: '  sprintf('%.2f', el) '°'];
+output_txt{2} = ['Elevation: '  sprintf('%.2f', el) '¡ã'];
 output_txt{3} = ['Value: ' sprintf('%.3f', val) 'm'];    % epoch
-

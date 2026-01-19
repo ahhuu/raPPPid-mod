@@ -21,7 +21,7 @@ function xyz = ApproximatePositionFromSats(Epoch, input, settings)
 n = numel(Epoch.sats);
 X = zeros(3,n); cutoff = zeros(1,n);
 k = NaN; IODE = NaN;
-resolution = 5;     % [°], resolution of search-raster
+resolution = 5;     % [¡ã], resolution of search-raster
 % define raster
 h = 0;      % calculations are done directly on the ellipsoid
 latitude  = 90:-resolution/2:-90;           lati = latitude/180*pi;         % [rad]

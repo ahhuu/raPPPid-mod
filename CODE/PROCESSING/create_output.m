@@ -133,8 +133,8 @@ if settings.AMBFIX.bool_AMBFIX && settings.EXP.results_fixed    % only if ambigu
     fprintf(fid,'%s\n','# (07) sigma receiver position: x [m]');
     fprintf(fid,'%s\n','# (08) sigma receiver position: y [m]');
     fprintf(fid,'%s\n','# (09) sigma receiver position: z [m]');
-    fprintf(fid,'%s\n','# (10) receiver position: phi [°]');
-    fprintf(fid,'%s\n','# (11) receiver position: lambda [°]');
+    fprintf(fid,'%s\n','# (10) receiver position: phi [¡ã]');
+    fprintf(fid,'%s\n','# (11) receiver position: lambda [¡ã]');
     fprintf(fid,'%s\n','# (12) receiver position: height [m]');
     fprintf(fid,'%s\n','# (13) receiver position: x_UTM [m]');
     fprintf(fid,'%s\n','# (14) receiver position: y_UTM [m]');
@@ -201,8 +201,8 @@ if ~settings.INPUT.bool_parfor
     XYZ_print = posFloat(n,:);
     % print ellipsoidal coordinates
     fprintf('\nFloat coordinates of the last processed epoch\n');
-    fprintf('Latitude: \t %9.5f [°]\n', geo_print(1)*(180/pi));
-    fprintf('Longitude:\t %9.5f [°]\n', geo_print(2)*(180/pi));
+    fprintf('Latitude: \t %9.5f [¡ã]\n', geo_print(1)*(180/pi));
+    fprintf('Longitude:\t %9.5f [¡ã]\n', geo_print(2)*(180/pi));
     fprintf('Height:\t\t %9.3f [m], WGS84\n', geo_print(3));
     % print cartesian coordinates
     fprintf('X:\t%12.3f [m]\n', XYZ_print(1));
@@ -281,8 +281,8 @@ fprintf(fid,'%s\n','# (06) receiver position: z [m]');
 fprintf(fid,'%s\n','# (07) sigma receiver position: x [m]');
 fprintf(fid,'%s\n','# (08) sigma receiver position: y [m]');
 fprintf(fid,'%s\n','# (09) sigma receiver position: z [m]');
-fprintf(fid,'%s\n','# (10) receiver position: latitude [°]');
-fprintf(fid,'%s\n','# (11) receiver position: longitude [°]');
+fprintf(fid,'%s\n','# (10) receiver position: latitude [¡ã]');
+fprintf(fid,'%s\n','# (11) receiver position: longitude [¡ã]');
 fprintf(fid,'%s\n','# (12) receiver position: height [m]');
 fprintf(fid,'%s\n','# (13) receiver position: x_UTM [m]');
 fprintf(fid,'%s\n','# (14) receiver position: y_UTM [m]');
@@ -371,7 +371,7 @@ elseif settings.INPUT.use_GAL
     t_epoch = t_epoch - rec_clk_code_GAL/Const.C;
 elseif settings.INPUT.use_BDS
     t_epoch = t_epoch - rec_clk_code_BDS/Const.C;
-elseif settings.INPUT.use_BDS
+elseif settings.INPUT.use_QZS
     t_epoch = t_epoch - rec_clk_code_QZS/Const.C;
 end
 
@@ -389,8 +389,8 @@ fprintf(fid,'%s\n','# (06) receiver position: z [m]');
 fprintf(fid,'%s\n','# (07) sigma receiver position: x [m]');
 fprintf(fid,'%s\n','# (08) sigma receiver position: y [m]');
 fprintf(fid,'%s\n','# (09) sigma receiver position: z [m]');
-fprintf(fid,'%s\n','# (10) receiver position: latitude [°]');
-fprintf(fid,'%s\n','# (11) receiver position: longitude [°]');
+fprintf(fid,'%s\n','# (10) receiver position: latitude [¡ã]');
+fprintf(fid,'%s\n','# (11) receiver position: longitude [¡ã]');
 fprintf(fid,'%s\n','# (12) receiver position: height [m]');
 fprintf(fid,'%s\n','# (13) receiver position: x_UTM [m]');
 fprintf(fid,'%s\n','# (14) receiver position: y_UTM [m]');
