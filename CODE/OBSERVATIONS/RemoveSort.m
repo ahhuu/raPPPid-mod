@@ -31,6 +31,9 @@ Epoch.gal  = Epoch.gal(sat_index);
 Epoch.bds  = Epoch.bds(sat_index);
 Epoch.qzss = Epoch.qzss(sat_index);
 Epoch.other_systems = Epoch.other_systems(sat_index);
+% BDS-2/BDS-3 sub-classification
+if isfield(Epoch, 'bds2'), Epoch.bds2 = Epoch.bds2(sat_index); end
+if isfield(Epoch, 'bds3'), Epoch.bds3 = Epoch.bds3(sat_index); end
 
 
 %% (2) Find satellite systems not used and removed them

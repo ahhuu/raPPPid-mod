@@ -34,8 +34,13 @@ if ~DecoupledClockModel
     model.dt_rx_clock(Epoch.gps,  :) = param( 5);
     model.dt_rx_clock(Epoch.glo,  :) = param( 5) + param( 8);
     model.dt_rx_clock(Epoch.gal,  :) = param( 5) + param(11);
-    model.dt_rx_clock(Epoch.bds,  :) = param( 5) + param(14);
-    model.dt_rx_clock(Epoch.bds,  :) = param( 5) + param(14);
+    % BDS-2/BDS-3 ISB support
+    if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb
+        model.dt_rx_clock(Epoch.bds2, :) = param( 5) + param(14);
+        model.dt_rx_clock(Epoch.bds3, :) = param( 5) + param(14) + param(20);
+    else
+        model.dt_rx_clock(Epoch.bds,  :) = param( 5) + param(14);
+    end
     model.dt_rx_clock(Epoch.qzss, :) = param( 5) + param(17);
 elseif DecoupledClockModel
     % code receiver clock error
@@ -61,18 +66,19 @@ end
 
 if settings.BIASES.estimate_rec_dcbs && ~DecoupledClockModel
     % receiver DCB_12 and DCB_13 are estimated
+    bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
     if num_freq > 1
         model.dcbs(Epoch.gps,  2) = param( 6);
         model.dcbs(Epoch.glo,  2) = param( 9);
         model.dcbs(Epoch.gal,  2) = param(12);
-        model.dcbs(Epoch.bds,  2) = param(15);
+        model.dcbs(Epoch.bds,  2) = param(15);   % shared BDS DCB12
         model.dcbs(Epoch.qzss, 2) = param(18);
     end
     if num_freq > 2
         model.dcbs(Epoch.gps,  3) = param( 7);
         model.dcbs(Epoch.glo,  3) = param(10);
         model.dcbs(Epoch.gal,  3) = param(13);
-        model.dcbs(Epoch.bds,  3) = param(16);
+        model.dcbs(Epoch.bds,  3) = param(16);   % shared BDS DCB13
         model.dcbs(Epoch.qzss, 3) = param(19);
     end
     

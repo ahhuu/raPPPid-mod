@@ -60,7 +60,14 @@ if ~Adjust.float
     % -) build parameter-vector
     param_vec = zeros(NO_PARAM + no_ambiguities + no_sats, 1);  % 16 + #ambiguities + #ionospheric delays
     param_vec(1:3,1) = settings.INPUT.pos_approx;       % approximate position (X,Y,Z)
-    % other parameters don´t have approximate values so they are zero
+    % other parameters donÂ´t have approximate values so they are zero
+    % Set ISB prior value for constrained mode
+    if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb ...
+            && isfield(settings.BIASES, 'bds23_isb_mode') ...
+            && strcmp(settings.BIASES.bds23_isb_mode, 'constrained') ...
+            && settings.INPUT.use_BDS
+        param_vec(20,1) = settings.BIASES.bds23_isb_prior_m;    % calibrated ISB [m]
+    end
     Adjust.param = param_vec;
     Adjust.param_pred = param_vec;
     % -) build covariance matrix of parameters
@@ -87,7 +94,20 @@ if ~Adjust.float
     end
     if QZSS_ON
         param_sigma(17,17)  = FILTER.var_rclk_qzss;    	% QZSS receiver clock error
-    end    
+    end
+    % BDS-3 ISB: additional parameters at indices 20-22
+    bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
+    bds23_isb_constrained = bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode') && ...
+        strcmp(settings.BIASES.bds23_isb_mode, 'constrained');
+    if bds23_isb_on && BDS_ON
+        if bds23_isb_constrained
+            % Constrained mode: tight prior from calibration
+            param_sigma(20,20) = settings.BIASES.bds23_isb_prior_sigma_m^2;  % prior variance [m^2]
+        else
+            % Free mode: large initial variance (white noise)
+            param_sigma(20,20) = FILTER.var_rclk_bds;      % BDS-3 clock/ISB variance
+        end
+    end
     if dcb_12_on        % DCBs between 1st and 2nd frequency
         if GPS_ON
             param_sigma(6,6)    = FILTER.var_DCB; 	% GPS DCB between frequency 1 and 2
@@ -103,7 +123,7 @@ if ~Adjust.float
         end
         if QZSS_ON
             param_sigma(18,18) 	= FILTER.var_DCB; 	% QZSS DCB between frequency 1 and 2
-        end        
+        end
     end
     if dcb_13_on        % DCBs between 1st and 3rd frequency
         if GPS_ON
@@ -120,7 +140,7 @@ if ~Adjust.float
         end
         if QZSS_ON
             param_sigma(19,19) 	= FILTER.var_DCB;	% QZSS DCB between frequency 1 and 3
-        end        
+        end
     end
     if bool_code_phase
         param_sigma(N_idx,N_idx) = N_eye*FILTER.var_amb; 	% add float ambiguities
@@ -160,7 +180,15 @@ if ~Adjust.float
             Noise(17,17) = FILTER.Q_rclk_qzss * QZSS_ON;    % QZSS receiver clock
             Noise(18,18) = FILTER.Q_DCB * dcb_12_on;        % QZSS DCB between frequency 1 and 2
             Noise(19,19) = FILTER.Q_DCB * dcb_13_on;        % QZSS DCB between frequency 1 and 3
-        end        
+        end
+        % BDS-3 ISB noise
+        if bds23_isb_on && BDS_ON
+            if bds23_isb_constrained
+                Noise(20,20) = 0.001;           % tiny drift [m^2/h], near-constant
+            else
+                Noise(20,20) = FILTER.Q_rclk_bds;  % white noise (same as BDS clock)
+            end
+        end
         Noise = Noise * dt;         % scale process noise from 1 hour to observation interval
         Adjust.Noise_0 = Noise;   	% save main part of Noise Matrix for all epochs
     % -) build main part of Transition Matrix for all epochs
@@ -181,7 +209,15 @@ if ~Adjust.float
         Transition(16,16) 	= FILTER.dynmodel_DCB;          % dynamic model BeiDou DCB between frequency 1 and 3
         Transition(17,17)   = FILTER.dynmodel_rclk_qzss; 	% dynamic model QZSS Receiver Clock
         Transition(18,18)  	= FILTER.dynmodel_DCB;          % dynamic model QZSS DCB between frequency 1 and 2
-        Transition(19,19) 	= FILTER.dynmodel_DCB;          % dynamic model QZSS DCB between frequency 1 and 3        
+        Transition(19,19) 	= FILTER.dynmodel_DCB;          % dynamic model QZSS DCB between frequency 1 and 3
+        % BDS-3 ISB transition
+        if bds23_isb_on
+            if bds23_isb_constrained
+                Transition(20,20) = 1;                      % random constant
+            else
+                Transition(20,20) = FILTER.dynmodel_rclk_bds;  % white noise
+            end
+        end
         Adjust.Transition_0 = Transition;   % save main part of Transition Matrix for all epochs
     end
 end

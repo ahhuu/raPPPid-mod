@@ -619,6 +619,79 @@ catch       % old settings file, delete at some point (changed 20/02/20)
     set(handles.radiobutton_models_biases_phase_off,             'Value',structure.BIASES.phase_off_bool);
 end
 
+% BDS-2/BDS-3 ISB estimation checkbox + mode dropdown + prior fields
+try
+	if isfield(handles, 'checkbox_bds23_isb') && isfield(structure.BIASES, 'estimate_bds23_isb')
+		set(handles.checkbox_bds23_isb, 'Value', structure.BIASES.estimate_bds23_isb);
+		% Determine ISB mode
+		isb_mode = 'free';
+		if isfield(structure.BIASES, 'bds23_isb_mode')
+			isb_mode = structure.BIASES.bds23_isb_mode;
+		end
+		% Set mode popupmenu value
+		if isfield(handles, 'popupmenu_bds23_isb_mode')
+			mode_items = get(handles.popupmenu_bds23_isb_mode, 'String');
+			idx = find(strcmp(mode_items, isb_mode), 1);
+			if isempty(idx), idx = 1; end
+			set(handles.popupmenu_bds23_isb_mode, 'Value', idx);
+		end
+		% Set prior edit fields
+		if isfield(handles, 'edit_bds23_isb_prior') && isfield(structure.BIASES, 'bds23_isb_prior_m')
+			set(handles.edit_bds23_isb_prior, 'String', sprintf('%.4f', structure.BIASES.bds23_isb_prior_m));
+		end
+		if isfield(handles, 'edit_bds23_isb_sigma') && isfield(structure.BIASES, 'bds23_isb_prior_sigma_m')
+			set(handles.edit_bds23_isb_sigma, 'String', sprintf('%.2f', structure.BIASES.bds23_isb_prior_sigma_m));
+		end
+		% Update enable/visible states
+		is_constrained = strcmp(isb_mode, 'constrained');
+		if structure.BIASES.estimate_bds23_isb
+			if isfield(handles, 'popupmenu_bds23_isb_mode')
+				set(handles.popupmenu_bds23_isb_mode, 'Enable', 'on');
+			end
+			if is_constrained, vis = 'on'; else, vis = 'off'; end
+			if isfield(handles, 'text_bds23_isb_prior')
+				set(handles.text_bds23_isb_prior, 'Visible', vis);
+				set(handles.edit_bds23_isb_prior, 'Visible', vis);
+				set(handles.text_bds23_isb_sigma, 'Visible', vis);
+				set(handles.edit_bds23_isb_sigma, 'Visible', vis);
+			end
+			if is_constrained && isfield(structure.BIASES, 'bds23_isb_prior_m')
+				prior_ns = structure.BIASES.bds23_isb_prior_m * 1e9 / 299792458;
+				sigma_m = 3.0;
+				if isfield(structure.BIASES, 'bds23_isb_prior_sigma_m')
+					sigma_m = structure.BIASES.bds23_isb_prior_sigma_m;
+				end
+				set(handles.checkbox_bds23_isb, 'TooltipString', ...
+					sprintf('Constrained: prior=%.2fns (%.4fm), sigma=%.2fm', ...
+					prior_ns, structure.BIASES.bds23_isb_prior_m, sigma_m));
+			else
+				set(handles.checkbox_bds23_isb, 'TooltipString', ...
+					'ISB mode: free (white noise)');
+			end
+		else
+			set(handles.checkbox_bds23_isb, 'TooltipString', '');
+			if isfield(handles, 'popupmenu_bds23_isb_mode')
+				set(handles.popupmenu_bds23_isb_mode, 'Enable', 'off');
+			end
+			if isfield(handles, 'text_bds23_isb_prior')
+				set(handles.text_bds23_isb_prior, 'Visible', 'off');
+				set(handles.edit_bds23_isb_prior, 'Visible', 'off');
+				set(handles.text_bds23_isb_sigma, 'Visible', 'off');
+				set(handles.edit_bds23_isb_sigma, 'Visible', 'off');
+			end
+		end
+		% 联动绘图 checkbox 可用状态
+		if isfield(handles, 'checkbox_plot_bds23_isb')
+			if structure.BIASES.estimate_bds23_isb
+				set(handles.checkbox_plot_bds23_isb, 'Enable', 'on');
+			else
+				set(handles.checkbox_plot_bds23_isb, 'Enable', 'off', 'Value', 0);
+			end
+		end
+	end
+catch
+	% old version without BDS-2/3 ISB estimation
+end
 
 
 %% Models - Other Corrections
@@ -1074,6 +1147,15 @@ if bool_settings == 1   % do this only for the settings structure
 	set(handles.checkbox_plot_signal_qual,      'Value', structure.PLOT.signal_qual   );
 	set(handles.checkbox_plot_res_sats,         'Value', structure.PLOT.res_sats      );
 	set(handles.checkbox_plot_stream_corr,      'Value', structure.PLOT.res_sats      );
+
+	% BDS-2/BDS-3 ISB plot checkbox
+	try
+		if isfield(handles, 'checkbox_plot_bds23_isb') && isfield(structure.PLOT, 'bds23_isb')
+			set(handles.checkbox_plot_bds23_isb, 'Value', structure.PLOT.bds23_isb);
+		end
+	catch
+		% old version without BDS-2/3 ISB plotting
+	end
 
 %     % true position for single plot
 %     if any(nonzeros(structure.INPUT.pos_approx-structure.PLOT.pos_true))

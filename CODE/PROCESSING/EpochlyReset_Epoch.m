@@ -68,6 +68,9 @@ Epoch.gal  = [];
 Epoch.bds  = [];
 Epoch.qzss = [];
 Epoch.other_systems = [];
+% BDS-2/BDS-3 ISB support
+if isfield(Epoch, 'bds2'); Epoch.bds2 = []; end
+if isfield(Epoch, 'bds3'); Epoch.bds3 = []; end
 % other
 Epoch.sats = [];
 Epoch.no_sats = [];

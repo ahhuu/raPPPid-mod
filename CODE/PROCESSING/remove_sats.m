@@ -21,5 +21,7 @@ Epoch.gps(remove) = [];
 Epoch.glo(remove) = [];
 Epoch.gal(remove) = [];
 Epoch.bds(remove) = [];
+if isfield(Epoch, 'bds2'), Epoch.bds2(remove) = []; end
+if isfield(Epoch, 'bds3'), Epoch.bds3(remove) = []; end
 Epoch.qzss(remove) = [];
 Epoch.other_systems(remove) = [];

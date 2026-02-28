@@ -61,7 +61,14 @@ omc_code_ = omc_code;       % to keep dimension
 omc_code_(Epoch.gps,:) = abs(omc_code(Epoch.gps,:) - median(omc_code(Epoch.gps,:), 'omitnan'));   
 omc_code_(Epoch.glo,:) = abs(omc_code(Epoch.glo,:) - median(omc_code(Epoch.glo,:), 'omitnan'));  
 omc_code_(Epoch.gal,:) = abs(omc_code(Epoch.gal,:) - median(omc_code(Epoch.gal,:), 'omitnan'));  
-omc_code_(Epoch.bds,:) = abs(omc_code(Epoch.bds,:) - median(omc_code(Epoch.bds,:), 'omitnan'));  
+% BDS: split median for BDS-2/BDS-3 when ISB is estimated
+if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb ...
+        && isfield(Epoch, 'bds2') && any(Epoch.bds2) && any(Epoch.bds3)
+    omc_code_(Epoch.bds2,:) = abs(omc_code(Epoch.bds2,:) - median(omc_code(Epoch.bds2,:), 'omitnan'));
+    omc_code_(Epoch.bds3,:) = abs(omc_code(Epoch.bds3,:) - median(omc_code(Epoch.bds3,:), 'omitnan'));
+else
+    omc_code_(Epoch.bds,:) = abs(omc_code(Epoch.bds,:) - median(omc_code(Epoch.bds,:), 'omitnan'));
+end  
 
 % if more than the half of the observations would be excluded, do not 
 % perform a check of omc (otherwise to many observations are excluded)
@@ -113,7 +120,14 @@ if bool_phase
     omc_phase_(Epoch.gps,:) = abs(omc_phase(Epoch.gps,:) - median(omc_phase(Epoch.gps,:), 'omitnan'));
     omc_phase_(Epoch.glo,:) = abs(omc_phase(Epoch.glo,:) - median(omc_phase(Epoch.glo,:), 'omitnan'));
     omc_phase_(Epoch.gal,:) = abs(omc_phase(Epoch.gal,:) - median(omc_phase(Epoch.gal,:), 'omitnan'));
-    omc_phase_(Epoch.bds,:) = abs(omc_phase(Epoch.bds,:) - median(omc_phase(Epoch.bds,:), 'omitnan'));
+    % BDS: split median for BDS-2/BDS-3 when ISB is estimated
+    if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb ...
+            && isfield(Epoch, 'bds2') && any(Epoch.bds2) && any(Epoch.bds3)
+        omc_phase_(Epoch.bds2,:) = abs(omc_phase(Epoch.bds2,:) - median(omc_phase(Epoch.bds2,:), 'omitnan'));
+        omc_phase_(Epoch.bds3,:) = abs(omc_phase(Epoch.bds3,:) - median(omc_phase(Epoch.bds3,:), 'omitnan'));
+    else
+        omc_phase_(Epoch.bds,:) = abs(omc_phase(Epoch.bds,:) - median(omc_phase(Epoch.bds,:), 'omitnan'));
+    end
     
     % calculate threshold for observed minus computed check of phase observations
     if time_last_reset/obs_intval >= n

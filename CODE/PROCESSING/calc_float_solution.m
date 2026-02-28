@@ -50,7 +50,12 @@ while it < DEF.ITERATION_MAX_NUMBER    	% Start iteration (because of linearizat
     % --- model the observations of current epoch, IMPORTANT FUNCTION!
     % if first iteration OR 2nd iteration if coordinate or clock jump occur
     coord_jump = it >= 2 && norm(dx.x(1:3)) > 0.05;
-    clock_jump = it >= 2 && abs(sum([dx.x(5),dx.x(8),dx.x(11),dx.x(14)])) > 1000; 
+    % include BDS-3 ISB clock param(20) in clock jump detection
+    clk_idx = [5, 8, 11, 14];
+    if it >= 2 && numel(dx.x) >= 20
+        clk_idx = [clk_idx, 17, 20];   % add QZSS and BDS-3
+    end
+    clock_jump = it >= 2 && abs(sum(dx.x(clk_idx))) > 1000; 
     if it == 1 || coord_jump || clock_jump
         [model, Epoch] = modelErrorSources(settings, input, Epoch, model, Adjust, obs);
     end

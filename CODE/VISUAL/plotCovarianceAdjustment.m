@@ -97,6 +97,12 @@ if ~decoupled_clock_model
     ticks{17} = 'dt_{QZSS}';
     ticks{18} = 'dcb_{12}^{QZSS}';
     ticks{19} = 'dcb_{23}^{QZSS}';
+    % BDS-2/BDS-3 ISB: extra params 20-22
+    if NO_PARAM >= 22
+        ticks{20} = 'dt_{BDS3}';
+        ticks{21} = 'dcb_{12}^{BDS3}';
+        ticks{22} = 'dcb_{23}^{BDS3}';
+    end
 else
     % decoupled clock model
     ticks = cell(1, NO_PARAM + s_f + bool_iono*noSats);
@@ -181,8 +187,14 @@ if ~decoupled_clock_model
     end
     if ~isBDS
         idx_remove = [idx_remove, 14, 15, 16];
+        if NO_PARAM >= 22
+            idx_remove = [idx_remove, 20, 21, 22];
+        end
     elseif ~settings.BIASES.estimate_rec_dcbs
         idx_remove = [idx_remove, 15, 16];
+        if NO_PARAM >= 22
+            idx_remove = [idx_remove, 21, 22];
+        end
     end
     if ~isQZSS
         idx_remove = [idx_remove, 17, 18, 19];

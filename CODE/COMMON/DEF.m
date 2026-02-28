@@ -73,6 +73,17 @@ classdef DEF
         % rec offset BDS,  dcb^C_1, dcb^C_2,                            (3)  
         % rec offset QZSS, dcb^J_1, dcb^J_2,                            (3)
         NO_PARAM_ZD = 19;	
+        
+        % BDS-2/BDS-3 ISB extension: 1 additional param (BDS-3 ISB offset)
+        % DCBs are shared between BDS-2 and BDS-3 for better observability
+        NO_PARAM_ZD_BDS23 = 20;
+        
+        % BDS-2 satellite PRN range (C01-C18)
+        BDS2_PRN_MIN = 1;
+        BDS2_PRN_MAX = 18;
+        % BDS-3 satellite PRN range (C19-C62)
+        BDS3_PRN_MIN = 19;
+        BDS3_PRN_MAX = 62;
 
         % decoupled clock model, number of estimated parameters : 
         % x, y, z, tropo,                                               (4)
@@ -87,7 +98,7 @@ classdef DEF
         MIN_SATS = 4;
         
         % some persistent variables for Ambiguity Fixing
-        CUTOFF_REF_SAT = 20;    % [°], try to change reference satellite if below
+        CUTOFF_REF_SAT = 20;    % [ï¿½], try to change reference satellite if below
         AR_THRES_SUCCESS_RATE = 0.99;    % for LAMBDA method
         
         % default thresholds [m] for multi-plot
@@ -105,7 +116,7 @@ classdef DEF
         % default processing name
         proc_name = 'noname';
         
-        % define resolution of gridwise VMF3 (1°x1° or 5°x5°)
+        % define resolution of gridwise VMF3 (1ï¿½x1ï¿½ or 5ï¿½x5ï¿½)
         VMF3_grid_resolution = 5;
         
         % model of the conventional mean pole

@@ -45,7 +45,11 @@ isBDS = settings.INPUT.use_BDS;
 Adjust.NO_PARAM = DEF.NO_PARAM_ZD;
 if decoupled_clock_model
     Adjust.NO_PARAM = DEF.NO_PARAM_DCM;
-end   
+end
+% BDS-2/BDS-3 ISB: extend parameter count by 3 (BDS-3 clock + 2 DCBs)
+if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb && ~decoupled_clock_model
+    Adjust.NO_PARAM = DEF.NO_PARAM_ZD_BDS23;   % 22
+end
 % Initialize Adjust for 1st epoch
 Adjust.float = false;
 Adjust.fixed = false;
@@ -98,6 +102,8 @@ Epoch.gps  = [];
 Epoch.glo  = [];
 Epoch.gal  = [];
 Epoch.bds  = [];
+Epoch.bds2 = [];    % BDS-2 boolean vector (C01-C18)
+Epoch.bds3 = [];    % BDS-3 boolean vector (C19-C62)
 Epoch.qzss = [];
 Epoch.other_systems = [];
 Epoch.tracked    = zeros(nnn,1);        % number of epochs each satellite is tracked, reset when cycle slip or under cutoff

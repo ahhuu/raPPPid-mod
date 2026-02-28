@@ -29,6 +29,7 @@ isQZSS = settings.INPUT.use_QZSS;
 % check for decoupled clock model and estimation of receiver DCBs
 DecoupledClockModel = strcmp(settings.IONO.model, 'Estimate, decoupled clock');
 estimate_dcbs = settings.BIASES.estimate_rec_dcbs;
+bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
 
 % remove the standard devations of those parameters which where not
 % estimated
@@ -91,6 +92,15 @@ if NO_PARAM ~= 4 && ~DecoupledClockModel
     if any(~isnan(BDS_rec_clk_code)) && isBDS
         plot(hours, BDS_rec_clk_code, 'm-');
         leg_txt_clk{i} = 'dt_{rec}^{C}';
+        i = i + 1;
+    end
+    % BDS-3 clock stdev (BDS-2/BDS-3 ISB)
+    if bds23_isb_on && isBDS && size(std_param,1) >= 20
+        BDS3_rec_clk_code = std_param(20,:);
+        if any(~isnan(BDS3_rec_clk_code))
+            plot(hours, BDS3_rec_clk_code, '-', 'Color', [0.5 0 0.5]);
+            leg_txt_clk{i} = 'dt_{rec}^{C3}'; i=i+1;
+        end
     end
     if isQZSS
         QZS_rec_clk_code = std_param(17,:);
@@ -214,7 +224,7 @@ if estimate_dcbs && ~DecoupledClockModel
         leg_txt_biases{j} = 'DCB_{1}^{C}'; j=j+1;
         if any(~isnan(BDS_dcb_2))
             plot(hours, BDS_dcb_2*m2ns, 'm--');
-            leg_txt_biases{j} = 'DCB_{2}^{C}';
+            leg_txt_biases{j} = 'DCB_{2}^{C}'; j=j+1;
         end
     end
     if isQZSS

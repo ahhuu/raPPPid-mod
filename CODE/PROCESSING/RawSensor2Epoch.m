@@ -143,6 +143,10 @@ Epoch.gps  = Epoch.sats < 100;
 Epoch.glo  = Epoch.sats > 100 & Epoch.sats < 200;
 Epoch.gal  = Epoch.sats > 200 & Epoch.sats < 300;
 Epoch.bds  = Epoch.sats > 300 & Epoch.sats < 400;
+% BDS-2/BDS-3 sub-classification
+prn_raw = mod(Epoch.sats, 100);
+Epoch.bds2 = Epoch.bds & prn_raw >= DEF.BDS2_PRN_MIN & prn_raw <= DEF.BDS2_PRN_MAX;
+Epoch.bds3 = Epoch.bds & prn_raw >= DEF.BDS3_PRN_MIN & prn_raw <= DEF.BDS3_PRN_MAX;
 Epoch.qzss = Epoch.sats > 400 & Epoch.sats < 500;
 Epoch.other_systems = ~Epoch.gps & ~Epoch.glo & ~Epoch.gal & ~Epoch.bds & ~Epoch.qzss;
 

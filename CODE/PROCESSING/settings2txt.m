@@ -161,6 +161,22 @@ end
 if settings.BIASES.estimate_rec_dcbs
     fprintf(fileID,'    %s\n','Receiver DCB Estimation is enabled');
 end
+% BDS-2/BDS-3 ISB estimation
+if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb
+    isb_mode = 'free';
+    if isfield(settings.BIASES, 'bds23_isb_mode')
+        isb_mode = settings.BIASES.bds23_isb_mode;
+    end
+    fprintf(fileID,'    %s\n','BDS-2/BDS-3 ISB Estimation is enabled (separate dt_BDS2 / dt_BDS3)');
+    fprintf(fileID,'    %s\n',['  ISB mode: ' isb_mode]);
+    if strcmp(isb_mode, 'constrained')
+        fprintf(fileID,'    %s\n',sprintf('  ISB prior value: %.4f m (%.2f ns)', ...
+            settings.BIASES.bds23_isb_prior_m, ...
+            settings.BIASES.bds23_isb_prior_m * 1e9 / 299792458));
+        fprintf(fileID,'    %s\n',sprintf('  ISB prior sigma: %.2f m', ...
+            settings.BIASES.bds23_isb_prior_sigma_m));
+    end
+end
 
 % Phase Biases
 if ~strcmp(settings.BIASES.phase, 'off')

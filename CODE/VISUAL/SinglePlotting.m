@@ -180,6 +180,12 @@ if settings.PLOT.clock
 end
 if STOP_CALC; return; end
 
+% -+-+-+-+- Figure: BDS-2/BDS-3 ISB Plot -+-+-+-+-
+if isfield(settings.PLOT, 'bds23_isb') && settings.PLOT.bds23_isb
+    vis_plotBDS23ISB(hours, label_x_h, storeData.param', reset_h, settings);
+end
+if STOP_CALC; return; end
+
 
 % -+-+-+-+- Figure: DCB Plot -+-+-+-+- 
 if settings.PLOT.dcb

@@ -137,6 +137,8 @@ if settings.INPUT.use_GLO
     Epoch.glo(remove_sat) = [];
     Epoch.gal(remove_sat) = [];
     Epoch.bds(remove_sat) = [];
+    if isfield(Epoch, 'bds2'), Epoch.bds2(remove_sat) = []; end
+    if isfield(Epoch, 'bds3'), Epoch.bds3(remove_sat) = []; end
     Epoch.qzss(remove_sat) = [];
     Epoch.other_systems(remove_sat) = [];
         
@@ -316,6 +318,8 @@ Epoch.gps(remove_sat)  = [];
 Epoch.glo(remove_sat)  = [];
 Epoch.gal(remove_sat)  = [];
 Epoch.bds(remove_sat)  = [];
+if isfield(Epoch, 'bds2'), Epoch.bds2(remove_sat) = []; end
+if isfield(Epoch, 'bds3'), Epoch.bds3(remove_sat) = []; end
 Epoch.qzss(remove_sat) = [];
 Epoch.other_systems(remove_sat) = [];
 

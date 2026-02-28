@@ -40,6 +40,8 @@ isGAL  = settings.INPUT.use_GAL;
 isBDS  = settings.INPUT.use_BDS;
 isQZSS = settings.INPUT.use_QZSS;
 
+% BDS-2/BDS-3 ISB support
+bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
 
 m2ns = 1e9 / Const.C;       % convert from [m] to [ns]
 
@@ -73,6 +75,9 @@ end
 strYAxis = 'dt_{rec} [ns]';
 fig_clk = figure('Name','Clock Plot', 'NumberTitle','off');
 n = isGPS + isGLO + isGAL + isBDS + isQZSS;     % number of plots
+if bds23_isb_on && isBDS
+    n = n + 1;      % separate BDS-2 and BDS-3 subplots
+end
 i = 1;
 
 
@@ -105,7 +110,13 @@ if isGAL
 end
 % plot Beidou
 if isBDS
-    i = plot_clk(rec_clk_BDS, i, n, m, resets_h, hours, strXAxis, ['BDS ' strYAxis], DEF.COLOR_C);
+    if bds23_isb_on
+        i = plot_clk(rec_clk_BDS, i, n, m, resets_h, hours, strXAxis, ['BDS-2 ' strYAxis], DEF.COLOR_C);
+        rec_clk_BDS3 = (param(14,:) + param(20,:)) * m2ns;  % BDS-3 = common + ISB
+        i = plot_clk(rec_clk_BDS3, i, n, m, resets_h, hours, strXAxis, ['BDS-3 ' strYAxis], [0.5 0 0.5]);
+    else
+        i = plot_clk(rec_clk_BDS, i, n, m, resets_h, hours, strXAxis, ['BDS ' strYAxis], DEF.COLOR_C);
+    end
 end
 % plot QZSS
 if isQZSS

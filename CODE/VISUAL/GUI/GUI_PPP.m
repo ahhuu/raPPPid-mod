@@ -99,6 +99,79 @@ path.lastproc = '';
 % putting struct with file-paths into handles
 handles.paths = path;
 
+% --- Create BDS-2/3 ISB mode controls programmatically ---
+if isfield(handles, 'checkbox_bds23_isb')
+    % Get checkbox position in PIXELS (GUIDE uses 'characters' by default)
+    old_units = get(handles.checkbox_bds23_isb, 'Units');
+    set(handles.checkbox_bds23_isb, 'Units', 'pixels');
+    cb_pos = get(handles.checkbox_bds23_isb, 'Position');
+    set(handles.checkbox_bds23_isb, 'Units', old_units);
+    par = get(handles.checkbox_bds23_isb, 'Parent');
+    bg = get(par, 'BackgroundColor');
+    h = max(cb_pos(4), 20);
+    % Row 1: Mode dropdown right after checkbox
+    x1 = cb_pos(1) + cb_pos(3) + 3;
+    y1 = cb_pos(2);
+    handles.popupmenu_bds23_isb_mode = uicontrol('Parent', par, ...
+        'Style', 'popupmenu', 'String', {'free','constrained'}, ...
+        'Units', 'pixels', 'Position', [x1 y1 95 h], 'Enable', 'off', ...
+        'TooltipString', 'ISB filter mode: free (white noise) or constrained (calibrated prior)', ...
+        'Callback', @(s,e) popupmenu_bds23_isb_mode_Callback(s,e,guidata(s)));
+    % Row 2 (below checkbox): Prior and Sigma fields — compact layout
+    y2 = cb_pos(2) - h - 2;  % one row below
+    x2 = cb_pos(1);
+    % "Prior[m]:" label
+    handles.text_bds23_isb_prior = uicontrol('Parent', par, ...
+        'Style', 'text', 'String', 'Prior[m]:', ...
+        'Units', 'pixels', 'Position', [x2 y2+2 46 h-4], 'Visible', 'off', ...
+        'BackgroundColor', bg, 'FontSize', 7, 'HorizontalAlignment', 'right');
+    x2 = x2 + 48;
+    % Prior edit
+    handles.edit_bds23_isb_prior = uicontrol('Parent', par, ...
+        'Style', 'edit', 'String', '0.0000', ...
+        'Units', 'pixels', 'Position', [x2 y2 50 h], 'Visible', 'off', ...
+        'TooltipString', 'Calibrated ISB prior [m]. Use calibrate_bds23_isb.m to determine.');
+    x2 = x2 + 52;
+    % "Sigma[m]:" label
+    handles.text_bds23_isb_sigma = uicontrol('Parent', par, ...
+        'Style', 'text', 'String', 'Sigma[m]:', ...
+        'Units', 'pixels', 'Position', [x2 y2+2 48 h-4], 'Visible', 'off', ...
+        'BackgroundColor', bg, 'FontSize', 7, 'HorizontalAlignment', 'right');
+    x2 = x2 + 50;
+    % Sigma edit
+    handles.edit_bds23_isb_sigma = uicontrol('Parent', par, ...
+        'Style', 'edit', 'String', '3.00', ...
+        'Units', 'pixels', 'Position', [x2 y2 38 h], 'Visible', 'off', ...
+        'TooltipString', 'ISB prior standard deviation [m]');
+    % --- Sync initial state if checkbox is already checked ---
+    if get(handles.checkbox_bds23_isb, 'Value') == 1
+        set(handles.popupmenu_bds23_isb_mode, 'Enable', 'on');
+        % Try to load mode from settings.mat
+        try
+            s = load(fullfile(pwd, 'settings.mat'), 'settings');
+            if isfield(s.settings, 'BIASES') && isfield(s.settings.BIASES, 'bds23_isb_mode')
+                isb_mode = s.settings.BIASES.bds23_isb_mode;
+                items = get(handles.popupmenu_bds23_isb_mode, 'String');
+                idx = find(strcmp(items, isb_mode), 1);
+                if ~isempty(idx), set(handles.popupmenu_bds23_isb_mode, 'Value', idx); end
+                if strcmp(isb_mode, 'constrained')
+                    set(handles.text_bds23_isb_prior, 'Visible', 'on');
+                    set(handles.edit_bds23_isb_prior, 'Visible', 'on');
+                    set(handles.text_bds23_isb_sigma, 'Visible', 'on');
+                    set(handles.edit_bds23_isb_sigma, 'Visible', 'on');
+                    if isfield(s.settings.BIASES, 'bds23_isb_prior_m')
+                        set(handles.edit_bds23_isb_prior, 'String', sprintf('%.4f', s.settings.BIASES.bds23_isb_prior_m));
+                    end
+                    if isfield(s.settings.BIASES, 'bds23_isb_prior_sigma_m')
+                        set(handles.edit_bds23_isb_sigma, 'String', sprintf('%.2f', s.settings.BIASES.bds23_isb_prior_sigma_m));
+                    end
+                end
+            end
+        catch
+        end
+    end
+end
+
 % Update handles structure
 guidata(hObject, handles);
 
@@ -4736,6 +4809,11 @@ PLOT.appl_biases   = get(handles.checkbox_plot_appl_biases,   'Value');
 PLOT.signal_qual   = get(handles.checkbox_plot_signal_qual,   'Value');
 PLOT.res_sats      = get(handles.checkbox_plot_res_sats,      'Value');
 PLOT.stream_corr   = get(handles.checkbox_plot_stream_corr,   'Value');
+if isfield(handles, 'checkbox_plot_bds23_isb')
+    PLOT.bds23_isb = get(handles.checkbox_plot_bds23_isb, 'Value');
+else
+    PLOT.bds23_isb = 0;
+end
 
 % get true coordinates or keep filepath to reference trajectory
 if isfile([handles.edit_y_true.String handles.edit_z_true.String])
@@ -4820,3 +4898,89 @@ end
 guidata(hObject, handles);
 end
 
+
+%% BDS-2/BDS-3 ISB Checkbox Callbacks
+% Estimate BDS-2/BDS-3 ISB separation
+function checkbox_bds23_isb_Callback(hObject, eventdata, handles)
+% 启用/禁用 BDS-2/BDS-3 ISB 分离估计
+% 联动下拉菜单、先验字段、绘图 checkbox
+if get(hObject, 'Value') == 1
+    % Enable mode popupmenu
+    if isfield(handles, 'popupmenu_bds23_isb_mode')
+        set(handles.popupmenu_bds23_isb_mode, 'Enable', 'on');
+        mode_items = get(handles.popupmenu_bds23_isb_mode, 'String');
+        mode_val = get(handles.popupmenu_bds23_isb_mode, 'Value');
+        isb_mode = mode_items{mode_val};
+        % Show constrained prior fields if needed
+        if strcmp(isb_mode, 'constrained'), vis = 'on'; else, vis = 'off'; end
+        if isfield(handles, 'text_bds23_isb_prior')
+            set(handles.text_bds23_isb_prior, 'Visible', vis);
+            set(handles.edit_bds23_isb_prior, 'Visible', vis);
+            set(handles.text_bds23_isb_sigma, 'Visible', vis);
+            set(handles.edit_bds23_isb_sigma, 'Visible', vis);
+        end
+    end
+    % Enable plot checkbox
+    if isfield(handles, 'checkbox_plot_bds23_isb')
+        set(handles.checkbox_plot_bds23_isb, 'Enable', 'on');
+    end
+    % Warning dialog
+    warndlg({...
+        'BDS-2/BDS-3 ISB estimation enabled.', '', ...
+        'Use the dropdown to select filter mode:', ...
+        '  free: white noise (needs >= 4 BDS-2 sats)', ...
+        '  constrained: calibrated prior (for smartphones)', '', ...
+        'For constrained mode, run calibrate_bds23_isb.m first,', ...
+        'or enter prior value and sigma in the fields.', '', ...
+        'WARNING: With < 4 BDS-2 satellites, free mode', ...
+        'may cause ~1.5m height degradation.'}, ...
+        'BDS-2/BDS-3 ISB Info');
+else
+    % Disable all ISB controls
+    if isfield(handles, 'popupmenu_bds23_isb_mode')
+        set(handles.popupmenu_bds23_isb_mode, 'Enable', 'off');
+    end
+    if isfield(handles, 'text_bds23_isb_prior')
+        set(handles.text_bds23_isb_prior, 'Visible', 'off');
+        set(handles.edit_bds23_isb_prior, 'Visible', 'off');
+        set(handles.text_bds23_isb_sigma, 'Visible', 'off');
+        set(handles.edit_bds23_isb_sigma, 'Visible', 'off');
+    end
+    if isfield(handles, 'checkbox_plot_bds23_isb')
+        set(handles.checkbox_plot_bds23_isb, 'Enable', 'off', 'Value', 0);
+    end
+    set(hObject, 'TooltipString', '');
+end
+handles = GUI_enable_onoff(handles);
+end
+
+% ISB mode dropdown callback
+function popupmenu_bds23_isb_mode_Callback(hObject, eventdata, handles)
+% Toggle constrained prior fields when mode changes
+mode_items = get(hObject, 'String');
+mode_val = get(hObject, 'Value');
+isb_mode = mode_items{mode_val};
+% Show/hide constrained prior fields
+if strcmp(isb_mode, 'constrained'), vis = 'on'; else, vis = 'off'; end
+if isfield(handles, 'text_bds23_isb_prior')
+    set(handles.text_bds23_isb_prior, 'Visible', vis);
+    set(handles.edit_bds23_isb_prior, 'Visible', vis);
+    set(handles.text_bds23_isb_sigma, 'Visible', vis);
+    set(handles.edit_bds23_isb_sigma, 'Visible', vis);
+end
+% Warn if constrained selected but prior not set
+if strcmp(isb_mode, 'constrained') && isfield(handles, 'edit_bds23_isb_prior')
+    prior_val = str2double(get(handles.edit_bds23_isb_prior, 'String'));
+    if isnan(prior_val) || prior_val == 0
+        warndlg({'Constrained mode selected but ISB prior is 0.', '', ...
+            'Run calibrate_bds23_isb.m to determine the prior value,', ...
+            'or enter a known value in the Prior[m] field.'}, ...
+            'ISB Prior Not Set');
+    end
+end
+guidata(hObject, handles);
+end
+
+% Plot BDS-2/BDS-3 ISB
+function checkbox_plot_bds23_isb_Callback(hObject, eventdata, handles)
+end

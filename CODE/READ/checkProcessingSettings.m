@@ -84,6 +84,60 @@ DecoupledClockModel = strcmp(settings.IONO.model, 'Estimate, decoupled clock');
 
 
 
+%% Backward compatibility: BDS-2/BDS-3 ISB
+if ~isfield(settings.BIASES, 'estimate_bds23_isb')
+    settings.BIASES.estimate_bds23_isb = false;
+end
+if ~isfield(settings, 'PLOT') || ~isfield(settings.PLOT, 'bds23_isb')
+    settings.PLOT.bds23_isb = false;
+end
+% ISB constrained mode fields (backward compatibility)
+if ~isfield(settings.BIASES, 'bds23_isb_mode')
+    settings.BIASES.bds23_isb_mode = 'free';
+end
+if ~isfield(settings.BIASES, 'bds23_isb_prior_m')
+    settings.BIASES.bds23_isb_prior_m = 0;
+end
+if ~isfield(settings.BIASES, 'bds23_isb_prior_sigma_m')
+    settings.BIASES.bds23_isb_prior_sigma_m = 3.0;
+end
+% Validate ISB mode string
+if settings.BIASES.estimate_bds23_isb
+    if ~ismember(settings.BIASES.bds23_isb_mode, {'free', 'constrained'})
+        if ~prebatch_check
+            errordlg('Invalid bds23_isb_mode. Must be ''free'' or ''constrained''.', windowname);
+        end
+        settings.BIASES.bds23_isb_mode = 'free';
+    end
+    % Constrained mode requires a non-zero prior
+    if strcmp(settings.BIASES.bds23_isb_mode, 'constrained') && settings.BIASES.bds23_isb_prior_m == 0
+        if ~prebatch_check
+            warndlg({['BDS-2/BDS-3 ISB constrained mode is enabled but the prior ' ...
+                'value is 0. Use calibrate_bds23_isb.m to obtain a calibrated ISB ' ...
+                'value from previous processing results, then set ' ...
+                'settings.BIASES.bds23_isb_prior_m accordingly.'], '', ...
+                'Falling back to free estimation mode.'}, windowname);
+        end
+        settings.BIASES.bds23_isb_mode = 'free';
+    end
+end
+% BDS-2/BDS-3 ISB requires BDS to be enabled
+if settings.BIASES.estimate_bds23_isb && ~BDS_on
+    if ~prebatch_check
+        errordlg('BDS-2/BDS-3 ISB estimation requires BDS to be enabled.', windowname);
+    end
+    settings.BIASES.estimate_bds23_isb = false;
+end
+% BDS-2/BDS-3 ISB is only supported for ZD model, not DCM (first phase)
+if settings.BIASES.estimate_bds23_isb && DecoupledClockModel
+    if ~prebatch_check
+        errordlg('BDS-2/BDS-3 ISB is not yet supported with Decoupled Clock Model.', windowname);
+    end
+    settings.BIASES.estimate_bds23_isb = false;
+end
+
+
+
 %% Check different number of processed frequencies (only for IF LC PPP models)
 if (strcmp(settings.IONO.model,'2-Frequency-IF-LCs') || strcmp(settings.IONO.model,'3-Frequency-IF-LC')) && ~prebatch_check
     % Different number of processed frequencies for GPS and Galileo

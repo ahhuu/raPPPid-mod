@@ -235,6 +235,40 @@ else
     settings.BIASES.code_manually_Sinex_bool = 0;
 end
 
+% BDS-2/BDS-3 ISB separate estimation
+if isfield(handles, 'checkbox_bds23_isb') && ishghandle(handles.checkbox_bds23_isb)
+    settings.BIASES.estimate_bds23_isb = logical(get(handles.checkbox_bds23_isb, 'Value'));
+else
+    % GUI control not present: preserve existing value or default to false
+    if ~isfield(settings, 'BIASES') || ~isfield(settings.BIASES, 'estimate_bds23_isb')
+        settings.BIASES.estimate_bds23_isb = false;
+    end
+end
+% BDS-2/BDS-3 ISB mode from dropdown (free / constrained)
+if isfield(handles, 'popupmenu_bds23_isb_mode') && ishghandle(handles.popupmenu_bds23_isb_mode)
+    mode_items = get(handles.popupmenu_bds23_isb_mode, 'String');
+    mode_val = get(handles.popupmenu_bds23_isb_mode, 'Value');
+    settings.BIASES.bds23_isb_mode = mode_items{mode_val};
+elseif ~isfield(settings.BIASES, 'bds23_isb_mode')
+    settings.BIASES.bds23_isb_mode = 'free';
+end
+% ISB prior value [m] from edit field
+if isfield(handles, 'edit_bds23_isb_prior') && ishghandle(handles.edit_bds23_isb_prior)
+    val = str2double(get(handles.edit_bds23_isb_prior, 'String'));
+    if isnan(val), val = 0; end
+    settings.BIASES.bds23_isb_prior_m = val;
+elseif ~isfield(settings.BIASES, 'bds23_isb_prior_m')
+    settings.BIASES.bds23_isb_prior_m = 0;
+end
+% ISB prior sigma [m] from edit field
+if isfield(handles, 'edit_bds23_isb_sigma') && ishghandle(handles.edit_bds23_isb_sigma)
+    val = str2double(get(handles.edit_bds23_isb_sigma, 'String'));
+    if isnan(val) || val <= 0, val = 3.0; end
+    settings.BIASES.bds23_isb_prior_sigma_m = val;
+elseif ~isfield(settings.BIASES, 'bds23_isb_prior_sigma_m')
+    settings.BIASES.bds23_isb_prior_sigma_m = 3.0;
+end
+
 % Phase
 settings.BIASES.phase = handles.buttongroup_models_biases_phase.SelectedObject.String;
 settings.BIASES.phase_corr2brdc_bool = strcmp(settings.BIASES.phase, 'Correction Stream');
@@ -658,6 +692,15 @@ settings.PLOT.appl_biases	= get(handles.checkbox_plot_appl_biases, 	'Value');
 settings.PLOT.signal_qual 	= get(handles.checkbox_plot_signal_qual, 	'Value');
 settings.PLOT.res_sats      = get(handles.checkbox_plot_res_sats,       'Value');
 settings.PLOT.stream_corr   = get(handles.checkbox_plot_stream_corr,	'Value');
+
+% BDS-2/BDS-3 ISB plot
+if isfield(handles, 'checkbox_plot_bds23_isb') && ishghandle(handles.checkbox_plot_bds23_isb)
+    settings.PLOT.bds23_isb = get(handles.checkbox_plot_bds23_isb, 'Value');
+else
+    if ~isfield(settings, 'PLOT') || ~isfield(settings.PLOT, 'bds23_isb')
+        settings.PLOT.bds23_isb = false;
+    end
+end
 
 % true coordinates
 settings.PLOT.pos_true = [0; 0; 0];    % ||| change at some point

@@ -150,7 +150,12 @@ for i_sat = 1:num_sat
     % get cutoff (could be already set!) and satellite status
     exclude = Epoch.exclude(i_sat);	status = Epoch.sat_status(i_sat,:);
     % receiver clock error [s]
-	dt_rx = (param(5) + isGLO*param(8) + isGAL*param(11) + isBDS*param(14) + isQZSS*param(17))/Const.C;      
+    if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb
+        isBDS2_i = Epoch.bds2(i_sat);   isBDS3_i = Epoch.bds3(i_sat);
+        dt_rx = (param(5) + isGLO*param(8) + isGAL*param(11) + isBDS*param(14) + isQZSS*param(17) + isBDS3_i*param(20))/Const.C;
+    else
+	    dt_rx = (param(5) + isGLO*param(8) + isGAL*param(11) + isBDS*param(14) + isQZSS*param(17))/Const.C;
+    end      
     
     % check if satellite has valid code observations
     if all(isnan(Epoch.code(i_sat,:)))
@@ -195,7 +200,7 @@ for i_sat = 1:num_sat
         if sv <= size(input.OTHER.PCV.sat_BDS, 2)
         PCV_sat = input.OTHER.PCV.sat_BDS(:,sv);
         else
-            % ´¦ÀíË÷Òý³¬³ö·¶Î§µÄÇé¿ö
+            % ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î§ï¿½ï¿½ï¿½ï¿½ï¿½
             warning('Index out of bounds in modelErrorSources. Check the number of columns in input.OTHER.PCV.sat_BDS and the value of sv.');
             PCV_sat = zeros(size(input.OTHER.PCV.sat_BDS, 1), 1); 
         end
@@ -203,7 +208,7 @@ for i_sat = 1:num_sat
         if sv <= size(input.OTHER.PCV.sat_BDS, 1)
         offset_LL = input.OTHER.PCO.sat_BDS(sv, 2:4, 1:6);
         else
-            % ´¦ÀíË÷Òý³¬³ö·¶Î§µÄÇé¿ö
+            % ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î§ï¿½ï¿½ï¿½ï¿½ï¿½
             warning('Index out of bounds in modelErrorSources. Check the number of columns in input.OTHER.PCV.sat_BDS and the value of sv.');
             offset_LL = zeros(3, 6, 1); 
         end
@@ -282,7 +287,7 @@ for i_sat = 1:num_sat
     %% Vectors, Angles, Distance between Receiver and Satellite
     
     % --- Azimuth, Elevation, zenith distance, cutoff-angle ---
-    [az, elev] = topocent(pos_XYZ, X_rot-pos_XYZ); 	% calculate azimuth and elevation [°]
+    [az, elev] = topocent(pos_XYZ, X_rot-pos_XYZ); 	% calculate azimuth and elevation [ï¿½]
     if elev < settings.PROC.elev_mask            	% elevation is under cut-off-angle
         exclude = true;         % eliminate satellite
         status(:) = 2;          % set satellite status
@@ -653,7 +658,7 @@ for i_sat = 1:num_sat
     % --- Satellite Antenna Phase Center Correction ---
     % convert observation from Antenna Phase Center to Center of Mass which
     % is necessary when orbit/clock product refers to the CoM
-    % ||| check´n´change for not sp3
+    % ||| checkï¿½nï¿½change for not sp3
     dX_PCO_SAT_ECEF_corr = zeros(n_proc_frq,1);
     if settings.OTHER.bool_sat_pco && (settings.ORBCLK.bool_sp3 || bool_stream_COM)
         % satellite Phase Center Offset and precise ephemerides are enabled
@@ -724,8 +729,8 @@ for i_sat = 1:num_sat
     model.zwd(i_sat,frqs)  = zwd;               % zenith wet delay (need for building a priori + estimated zwd later) [m]
     model.zhd(i_sat,frqs)  = zhd;               % modeled zenith hydrostativ delay []
     % Observation direction
-    model.az(i_sat,frqs)   = az;                % Satellite azimuth [°]
-    model.el(i_sat,frqs)   = elev;            	% Satellite elevation [°]
+    model.az(i_sat,frqs)   = az;                % Satellite azimuth [ï¿½]
+    model.el(i_sat,frqs)   = elev;            	% Satellite elevation [ï¿½]
     % Windup
     model.delta_windup(i_sat,frqs) = delta_windup;          % Phase windup effect [cycles]
     model.windup(i_sat,frqs)       = windupCorr(frqs);      % Phase windup effect, scaled to frequency [m]

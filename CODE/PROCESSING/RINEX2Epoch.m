@@ -97,7 +97,7 @@ if r_version == 2
     is_bds = (sys' == 'C');         % (BeiDou does not exist in RINEX 2)
     is_qzss= (sys' == 'J');         % (QZSS does not exist in RINEX 2)
     is_other = ~is_gps & ~is_glo & ...
-        ~is_gal&~is_bds&~is_qzss;   % (other GNSS don´t exist in RINEX 2)
+        ~is_gal&~is_bds&~is_qzss;   % (other GNSS donï¿½t exist in RINEX 2)
     % get satellite numbers
     sats = [epoch_sats(2:3:end)', epoch_sats(3:3:end)'];
     sats = str2num(sats);                       % str2num is slow but exclusively works here
@@ -264,6 +264,10 @@ Epoch.gps  = is_gps;
 Epoch.glo  = is_glo;
 Epoch.gal  = is_gal;
 Epoch.bds  = is_bds;
+% BDS-2/BDS-3 sub-classification
+prn_bds = mod(sats, 100);   % extract PRN number
+Epoch.bds2 = is_bds & prn_bds >= DEF.BDS2_PRN_MIN & prn_bds <= DEF.BDS2_PRN_MAX;
+Epoch.bds3 = is_bds & prn_bds >= DEF.BDS3_PRN_MIN & prn_bds <= DEF.BDS3_PRN_MAX;
 Epoch.qzss = is_qzss;
 Epoch.other_systems = is_other;
 Epoch.usable = usable;

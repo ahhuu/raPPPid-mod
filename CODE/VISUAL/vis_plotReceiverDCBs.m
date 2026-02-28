@@ -51,7 +51,7 @@ if isGAL
 end
 if isBDS
     leg_cell = plot_DCBs(leg_cell, hours, param(15,:), param(16,:), ...
-        'BDS', 'm', no_dcbs, obs.BDS);       % BeiDou
+        'BDS', 'm', no_dcbs, obs.BDS);       % BeiDou (shared DCB for all BDS sats)
 end
 if isQZSS
     leg_cell = plot_DCBs(leg_cell, hours, param(18,:), param(18,:), ...

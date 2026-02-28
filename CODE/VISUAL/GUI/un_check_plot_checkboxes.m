@@ -41,4 +41,7 @@ set(handles.checkbox_plot_res_sats,      'Value', value);
 set(handles.checkbox_plot_corr,          'Value', value);
 set(handles.checkbox_plot_iono,          'Value', value);
 set(handles.checkbox_plot_appl_biases, 	 'Value', value);
+if isfield(handles, 'checkbox_plot_bds23_isb')
+    set(handles.checkbox_plot_bds23_isb,  'Value', value);
+end
 end

@@ -33,6 +33,15 @@ isGAL  = repmat(Epoch.gal,  num_freq, 1);
 isBDS  = repmat(Epoch.bds,  num_freq, 1);  
 isQZSS = repmat(Epoch.qzss, num_freq, 1);  
 
+% BDS-2/BDS-3 ISB support
+bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
+if bds23_isb_on
+    isBDS2 = repmat(Epoch.bds2, num_freq, 1);
+    isBDS3 = repmat(Epoch.bds3, num_freq, 1);
+end
+
+NO_PARAM = Adjust.NO_PARAM;  % dynamic: 19 or 22
+
 sat_pos_x = repmat(model.Rot_X(1,:)', 1, num_freq);  	% satellite ECEF position x
 sat_pos_y = repmat(model.Rot_X(2,:)', 1, num_freq);  	% satellite ECEF position y
 sat_pos_z = repmat(model.Rot_X(3,:)', 1, num_freq);  	% satellite ECEF position z
@@ -57,16 +66,23 @@ dR_dz    = -( sat_pos_z(:)-param(3) ) ./ rho;         % z
 dR_dtrop =  model.mfw(:);       % wet mapping function
 
 % clock and DCBs
-dR_time_dcb = zeros(s_f, 15);
+dR_time_dcb = zeros(s_f, NO_PARAM - 4);
 % receiver clock error
 if settings.INPUT.use_GPS
-    dR_time_dcb(:, 1) = isGPS + isGLO + isGAL + isBDS;       % GPS
+    dR_time_dcb(:, 1) = isGPS + isGLO + isGAL + isBDS + isQZSS;       % GPS
 end
 % time offsets
 dR_time_dcb(:, 4) = isGLO;       % GLONASS
 dR_time_dcb(:, 7) = isGAL;       % Galileo
-dR_time_dcb(:,10) = isBDS;       % BeiDou
+if bds23_isb_on
+    dR_time_dcb(:,10) = isBDS;       % BeiDou common clock (all BDS sats)
+else
+    dR_time_dcb(:,10) = isBDS;       % BeiDou (all)
+end
 dR_time_dcb(:,13) = isQZSS;      % QZSS
+if bds23_isb_on
+    dR_time_dcb(:,16) = isBDS3;      % BeiDou-3 (param 20)
+end
 % Differential Code Biases
 if settings.BIASES.estimate_rec_dcbs
     % DCBs between 1st and 2nd frequency
@@ -75,7 +91,7 @@ if settings.BIASES.estimate_rec_dcbs
         dR_time_dcb(frq_2, 2) = -isGPS(frq_2);   	% GPS
         dR_time_dcb(frq_2, 5) = -isGLO(frq_2);   	% GLONASS
         dR_time_dcb(frq_2, 8) = -isGAL(frq_2);   	% Galileo
-        dR_time_dcb(frq_2,11) = -isBDS(frq_2);   	% BeiDou
+        dR_time_dcb(frq_2,11) = -isBDS(frq_2);   	% BeiDou (shared DCB12 for all BDS sats)
         dR_time_dcb(frq_2,14) = -isQZSS(frq_2);   	% QZSS
     end
     % DCBs between 1st and 3rd frequency
@@ -84,7 +100,7 @@ if settings.BIASES.estimate_rec_dcbs
         dR_time_dcb(frq_3, 3) =  -isGPS(frq_3);  	% GPS
         dR_time_dcb(frq_3, 6) =  -isGLO(frq_3);   	% GLONASS
         dR_time_dcb(frq_3, 9) =  -isGAL(frq_3);    	% Galileo
-        dR_time_dcb(frq_3,12) =  -isBDS(frq_3);   	% BeiDou
+        dR_time_dcb(frq_3,12) = -isBDS(frq_3);   	% BeiDou (shared DCB13 for all BDS sats)
         dR_time_dcb(frq_3,15) = -isQZSS(frq_3);   	% QZSS
     end
 end

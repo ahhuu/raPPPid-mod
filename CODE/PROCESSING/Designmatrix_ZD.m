@@ -33,8 +33,14 @@ isGAL  = repmat(Epoch.gal,  num_freq, 1);
 isBDS  = repmat(Epoch.bds,  num_freq, 1); 
 isQZSS = repmat(Epoch.qzss, num_freq, 1);  	
 
+% BDS-2/BDS-3 ISB support
+bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
+if bds23_isb_on
+    isBDS2 = repmat(Epoch.bds2, num_freq, 1);
+    isBDS3 = repmat(Epoch.bds3, num_freq, 1);
+end
 
-NO_PARAM = DEF.NO_PARAM_ZD;         % number of estimated parameters
+NO_PARAM = Adjust.NO_PARAM;          % number of estimated parameters (dynamic)
 s_f = no_sats*num_freq;             % satellites x frequencies
 exclude = Epoch.exclude(:);         % satellite excluded?
 usePhase = ~Epoch.cs_found(:);      % use phase observation? (e.g., cycle slip found)
@@ -74,8 +80,15 @@ end
 % receiver clock offsets
 dR_time_dcb(:, 4) = isGLO;   	% GLONASS
 dR_time_dcb(:, 7) = isGAL;   	% Galileo
-dR_time_dcb(:,10) = isBDS;    	% BeiDou
+if bds23_isb_on
+    dR_time_dcb(:,10) = isBDS;     	% BeiDou common clock (all BDS sats)
+else
+    dR_time_dcb(:,10) = isBDS;    	% BeiDou (all)
+end
 dR_time_dcb(:,13) = isQZSS;   	% QZSS
+if bds23_isb_on
+    dR_time_dcb(:,16) = isBDS3;    	% BeiDou-3 (param 20)
+end
 % Differential Code Biases
 if settings.BIASES.estimate_rec_dcbs
     % DCBs between 1st and 2nd frequency
@@ -84,7 +97,7 @@ if settings.BIASES.estimate_rec_dcbs
         dR_time_dcb(frq_2, 2) =  -isGPS(frq_2);   	% GPS
         dR_time_dcb(frq_2, 5) =  -isGLO(frq_2);   	% GLONASS
         dR_time_dcb(frq_2, 8) =  -isGAL(frq_2);   	% Galileo
-        dR_time_dcb(frq_2,11) =  -isBDS(frq_2);   	% BeiDou
+        dR_time_dcb(frq_2,11) = -isBDS(frq_2);   	% BeiDou (shared DCB12 for all BDS sats)
         dR_time_dcb(frq_2,14) = -isQZSS(frq_2);   	% QZSS
     end
     % DCBs between 1st and 3rd frequency
@@ -93,7 +106,7 @@ if settings.BIASES.estimate_rec_dcbs
         dR_time_dcb(frq_3, 3) =  -isGPS(frq_3);  	% GPS
         dR_time_dcb(frq_3, 6) =  -isGLO(frq_3);   	% GLONASS
         dR_time_dcb(frq_3, 9) =  -isGAL(frq_3);    	% Galileo
-        dR_time_dcb(frq_3,12) =  -isBDS(frq_3);   	% BeiDou
+        dR_time_dcb(frq_3,12) = -isBDS(frq_3);   	% BeiDou (shared DCB13 for all BDS sats)
         dR_time_dcb(frq_3,15) = -isQZSS(frq_3);   	% QZSS
     end
 end
