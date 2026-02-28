@@ -535,63 +535,110 @@ if settings.AMBFIX.bool_AMBFIX
     end
 end
 
-% check if elevation weighting function is valid
-if settings.ADJ.weight_elev
-    % check if conversion was successful with elev = 45Â°
-    try 
-        settings.ADJ.elev_weight_fun([pi/4 pi/5]);
-    catch
-        errordlg({'Please check the elevation weighting function!', 'To allow elementwise operations, use "."'}, windowname)
-        valid_settings = false; return
-    end
-end
-
-% check if C/N0 weighting function is valid
-if settings.ADJ.weight_sign_str && isa(settings.ADJ.snr_weight_fun,'function_handle')
-    % check the variable used in the function string
-    if ~(contains(func2str(settings.ADJ.snr_weight_fun), 'snr') || contains(func2str(settings.ADJ.snr_weight_fun), 'SNR'))
-        errordlg({'Please check the SNR weighting function!', 'Use "SNR" as variable.'}, windowname)
-        valid_settings = false; return
-    end
-    % check if conversion was successful with C/N0 = 30 and 40
-    try
-        settings.ADJ.snr_weight_fun([30 40]);
-    catch
-        errordlg({'Please check the C/N0 weighting function!', 'To allow elementwise operations, use "."'}, windowname)
-        valid_settings = false; return
-    end
-end
-
-% 检查联合函数
-if settings.ADJ.weight_snr_elev
-    if ~isa(settings.ADJ.snr_elev_weight_fun, 'function_handle')
-        errordlg({'请选择有效的 SNR 和高度角联合加权函数。'}, '参数错误');
-        valid_settings = false;
-        return
-    end
+    % check if elevation weighting function is valid
+    if settings.ADJ.weight_elev
+        % Extract all function handles for testing
+        if isstruct(settings.ADJ.elev_weight_fun)
+            fn = fieldnames(settings.ADJ.elev_weight_fun);
+            funs = {};
+            for i = 1:numel(fn)
+                funs = [funs, settings.ADJ.elev_weight_fun.(fn{i})];
+            end
+        elseif iscell(settings.ADJ.elev_weight_fun)
+            funs = settings.ADJ.elev_weight_fun;
+        else
+            funs = {settings.ADJ.elev_weight_fun};
+        end
         
-    % 检查变量使用（大小写不敏感）
-    fun_str = func2str(settings.ADJ.snr_elev_weight_fun);
-    if ~contains(lower(fun_str), 'snr') || ~contains(lower(fun_str), 'e')
-        errordlg({'联合函数必须包含 "SNR" 和 "e" 变量。'}, '参数错误');
-        valid_settings = false;
-        return
+        for k = 1:numel(funs)
+            try 
+                funs{k}([pi/4 pi/5]);
+            catch
+                errordlg({['Please check the elevation weighting function (Part ' num2str(k) ')!'], 'To allow elementwise operations, use "."'}, windowname)
+                valid_settings = false; return
+            end
+        end
     end
+
+    % check if C/N0 weighting function is valid
+    if settings.ADJ.weight_sign_str
+        if isstruct(settings.ADJ.snr_weight_fun)
+            fn = fieldnames(settings.ADJ.snr_weight_fun);
+            funs = {};
+            for i = 1:numel(fn)
+                funs = [funs, settings.ADJ.snr_weight_fun.(fn{i})];
+            end
+        elseif iscell(settings.ADJ.snr_weight_fun)
+            funs = settings.ADJ.snr_weight_fun;
+        else
+            funs = {settings.ADJ.snr_weight_fun};
+        end
         
-    % 检查函数是否能正常运行
-    try
-        settings.ADJ.snr_elev_weight_fun([30 40], [10*pi/180, 20*pi/180]);  % 使用弧度
-    catch ME
-        % 捕获详细的错误信息
-        errordlg({
-            '联合函数计算失败，请检查语法！',
-            ['错误类型: ', ME.identifier],
-            ['错误信息: ', ME.message]
-        }, windowname);
-        valid_settings = false;
-        return
+        for k = 1:numel(funs)
+            f = funs{k};
+            if ischar(f) && contains(f, 'option')
+                continue; % skip hardcoded options
+            end
+            if ~isa(f, 'function_handle')
+                errordlg(['Invalid SNR weighting function handle at index ' num2str(k)], windowname);
+                valid_settings = false; return;
+            end
+            % check the variable used in the function string
+            if ~(contains(lower(func2str(f)), 'snr'))
+                errordlg({['Please check the C/N0 weighting function (Part ' num2str(k) ')!'], 'To allow elementwise operations, use "."'}, windowname)
+                valid_settings = false; return
+            end
+            % check if conversion was successful with C/N0 = 30 and 40
+            try
+                f([30 40]);
+            catch
+                errordlg({['Please check the C/N0 weighting function (Part ' num2str(k) ')!'], 'To allow elementwise operations, use "."'}, windowname)
+                valid_settings = false; return
+            end
+        end
     end
-end
+
+    % 检查联合函数
+    if settings.ADJ.weight_snr_elev
+        if isstruct(settings.ADJ.snr_elev_weight_fun)
+            fn = fieldnames(settings.ADJ.snr_elev_weight_fun);
+            funs = {};
+            for i = 1:numel(fn)
+                funs = [funs, settings.ADJ.snr_elev_weight_fun.(fn{i})];
+            end
+        elseif iscell(settings.ADJ.snr_elev_weight_fun)
+            funs = settings.ADJ.snr_elev_weight_fun;
+        else
+            funs = {settings.ADJ.snr_elev_weight_fun};
+        end
+        
+        for k = 1:numel(funs)
+            f = funs{k};
+            if ~isa(f, 'function_handle')
+                errordlg({['第 ' num2str(k) ' 个联合加权函数无效。']}, '参数错误');
+                valid_settings = false; return
+            end
+                
+            % 检查变量使用（大小写不敏感）
+            fun_str = func2str(f);
+            if ~contains(lower(fun_str), 'snr') || ~contains(lower(fun_str), 'e')
+                errordlg({['第 ' num2str(k) ' 个联合函数必须包含 "SNR" 和 "e" 变量。']}, '参数错误');
+                valid_settings = false; return
+            end
+                
+            % 检查函数是否能正常运行
+            try
+                f([30 40], [10*pi/180, 20*pi/180]);  % 使用弧度
+            catch ME
+                errordlg({
+                    ['第 ' num2str(k) ' 个联合函数计算失败，请检查语法！'],
+                    ['错误类型: ', ME.identifier],
+                    ['错误信息: ', ME.message]
+                }, windowname);
+                valid_settings = false; return
+            end
+        end
+    end
 
 % check is reset of solution is valid
 if settings.PROC.reset_float && isnan(settings.PROC.reset_after)

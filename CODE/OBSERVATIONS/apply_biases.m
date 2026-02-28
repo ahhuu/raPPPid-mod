@@ -89,7 +89,24 @@ valid = logical(sum(take,1));    	% convert do boolean vector
 
 % ||| the following line fails if at a specific point in time two different
 % bias corrections are valid (error in the bias file...)
-bias_epoch(valid) = bias_obs(take);             % take biases only for satellites which have valid ones
+% Handle case where multiple biases are valid for the same satellite
+taken_biases = bias_obs(take);
+if numel(taken_biases) ~= sum(valid(:))
+    % Multiple biases valid for same satellite(s), take only the first one
+    warning('Multiple valid biases found for some satellites at time %.1f/%.0f. Taking first valid bias.', sow, week);
+    % Reshape take to find first valid bias per satellite and frequency
+    for sat_idx = 1:size(take,2)
+        for freq_idx = 1:size(take,3)
+            valid_indices = find(take(:,sat_idx,freq_idx));
+            if numel(valid_indices) > 1
+                % Keep only the first valid bias
+                take(valid_indices(2:end),sat_idx,freq_idx) = false;
+            end
+        end
+    end
+    taken_biases = bias_obs(take);
+end
+bias_epoch(valid) = taken_biases;             % take biases only for satellites which have valid ones
 
 % apply coefficient to convert from C1W to IF-LC-C1W-C2W if necessary:
 % therefore the third dimension of the biases is used where the DSB between

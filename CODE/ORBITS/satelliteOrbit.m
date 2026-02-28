@@ -29,36 +29,51 @@ function [X, V, exclude, status] = ...
 % This function belongs to raPPPid, Copyright (c) 2023, M.F. Glaner
 % *************************************************************************
 
-    % persistent epoch;               % epoch计数器
-    % persistent first_write;         % 首次写入标志
-    % persistent prev_file_info;      % 前一个文件信息
-    % persistent first_prn;           % 第一个写入的卫星PRN
-    % persistent written_sat_ttr;     % 记录各卫星已写入的Ttr值
+    % %% 卫星坐标导出逻辑 - 修正版
+    % if ~settings.INPUT.bool_parfor  % 仅在非并行模式下导出，防止多核心抢占写文件
+    %     persistent epoch_counter;
+    %     persistent prev_ttr_ref;
+    %     persistent prev_file;
     % 
-    % % 获取当前处理文件名
-    % current_file_info = settings.PROC.name;
+    %     % 获取当前处理的文件名
+    %     current_file_name = settings.PROC.name;
     % 
-    % % 检查是否开始处理新文件
-    % if isempty(prev_file_info) || ~strcmp(current_file_info, prev_file_info)
-    %     epoch = 0;                  % epoch初始值为0
-    %     first_write = true;         % 标记首次写入
-    %     first_prn = [];             % 重置首个PRN记录
-    %     written_sat_ttr = containers.Map('KeyType', 'double', 'ValueType', 'any'); % 创建空容器
-    %     prev_file_info = current_file_info; % 更新文件信息
-    % end
+    %     % 切换文件或首个历元初始化
+    %     if isempty(prev_file) || ~strcmp(current_file_name, prev_file)
+    %         epoch_counter = 0;
+    %         prev_ttr_ref = -1;
+    %         prev_file = current_file_name;
+    %     end
     % 
-    % % 初始化未定义的持久变量
-    % if isempty(epoch)
-    %     epoch = 1;
-    % end
-    % if isempty(first_write)
-    %     first_write = true;
-    % end
-    % if isempty(first_prn)
-    %     first_prn = [];
-    % end
-    % if isempty(written_sat_ttr)
-    %     written_sat_ttr = containers.Map('KeyType', 'double', 'ValueType', 'any');
+    %     % 历元检测逻辑 (由于不同卫星Ttr有ms级差异，判定偏差 > 0.1s 为新历元)
+    %     if abs(Ttr - prev_ttr_ref) > 0.1
+    %         epoch_counter = epoch_counter + 1;
+    %         prev_ttr_ref = Ttr;
+    % 
+    %         % 处理文件路径
+    %         output_dir = settings.PROC.output_dir;
+    %         if ~exist(output_dir, 'dir'), mkdir(output_dir); end
+    %         file_path = fullfile(output_dir, 'satellite_positions.txt');
+    % 
+    %         % 第一个历元执行覆盖写(加表头)，后续追加
+    %         if epoch_counter == 1
+    %             fid = fopen(file_path, 'w');
+    %             fprintf(fid, '#%-10s\t%-4s\t%-12s\t%24s  %24s  %24s\n', ...
+    %                     'Epoch', 'PRN', 'Ttr', 'X', 'Y', 'Z');
+    %         else
+    %             fid = fopen(file_path, 'a');
+    %         end
+    %     else
+    %         file_path = fullfile(settings.PROC.output_dir, 'satellite_positions.txt');
+    %         fid = fopen(file_path, 'a');
+    %     end
+    % 
+    %     if fid ~= -1
+    %         % 写入数据：Epoch, PRN, Ttr, X(1,2,3)
+    %         fprintf(fid, '%-11d\t%-4d\t%-12.6f\t%24.6f  %24.6f  %24.6f\n', ...
+    %                 epoch_counter, prn, Ttr, X(1), X(2), X(3));
+    %         fclose(fid);
+    %     end
     % end
 
     %% 卫星轨道计算准备

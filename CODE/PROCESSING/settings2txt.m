@@ -196,7 +196,7 @@ end
 fprintf(fileID,'  %s%s %s\n','zwd: ', settings.TROPO.zwd, detectGridSiteWise(settings.TROPO.zwd, input, settings.TROPO.vmf_version));
 if strcmpi(settings.TROPO.zwd,'e (in situ) + Askne')
     fprintf(fileID,'    %s%5.2f%s\n','q: ', settings.TROPO.q,' %');
-    fprintf(fileID,'    %s%6.2f%s\n','T: ', settings.TROPO.T,' °C');
+    fprintf(fileID,'    %s%6.2f%s\n','T: ', settings.TROPO.T,' Â°C');
 elseif strcmpi(settings.TROPO.zwd,'Tropo file') && strcmpi(settings.TROPO.tropo_file,'manually')
     fprintf(fileID,'    %s: %s\n', 'manually', settings.TROPO.tropo_filepath);    
 end
@@ -344,13 +344,11 @@ fprintf(fileID,'  %s','Weighting Scheme for Observations: ');
 if settings.ADJ.weight_mplc
     fprintf(fileID,'%s\n','Multipath-LC');
 elseif settings.ADJ.weight_elev
-    fprintf(fileID,'%s%s\n','Elevation, function: ', strrep(func2str(settings.ADJ.elev_weight_fun), '@(e)', ''));
+    fprintf(fileID,'%s%s\n','Elevation, function: ', weightSetting2Str(settings.ADJ.elev_weight_fun));
 elseif settings.ADJ.weight_sign_str
-    if ischar(settings.ADJ.snr_weight_fun)
-        fprintf(fileID,'%s%s\n','C/N0: ', settings.ADJ.snr_weight_fun);
-    else
-        fprintf(fileID,'%s%s\n','C/N0, function: ', strrep(func2str(settings.ADJ.snr_weight_fun), '@(snr)', ''));
-    end
+    fprintf(fileID,'%s%s\n','C/N0, function: ', weightSetting2Str(settings.ADJ.snr_weight_fun));
+elseif settings.ADJ.weight_snr_elev
+    fprintf(fileID,'%s%s\n','C/N0 and elevation, function: ', weightSetting2Str(settings.ADJ.snr_elev_weight_fun));
 elseif settings.ADJ.weight_none
     fprintf(fileID,'%s\n','None');
 end
@@ -450,7 +448,7 @@ if settings.AMBFIX.bool_AMBFIX
         fprintf(fileID,'  %s%.0f\n', 'Fixing-Start [s] = ', settings.AMBFIX.start_WL_sec);
     end
     fprintf(fileID,'  %s%.2f%s%.2f%s%.0f%s\n','HMW fixing: threshold = ', settings.AMBFIX.HMW_thresh, ' [cy], releasing threshold = ', settings.AMBFIX.HMW_release, ' [cy], window = ', settings.AMBFIX.HMW_window, ' [s]');
-    fprintf(fileID,'  %s%d\n','Fixing cutoff [°]: ', settings.AMBFIX.cutoff);
+    fprintf(fileID,'  %s%d\n','Fixing cutoff [Â°]: ', settings.AMBFIX.cutoff);
     fprintf(fileID,'  %s%s\n','Choice of Reference Satellite: ', settings.AMBFIX.refSatChoice);
     if strcmp(settings.AMBFIX.refSatChoice, 'manual choice (list):')
         fprintf(fileID,'    %s%d\n','Manual reference satellite list for GPS: ', settings.AMBFIX.refSatGPS);
@@ -581,7 +579,7 @@ if ~bool
 end
 
 fprintf(fileID,'  Satellite Exclusion Criteria:\n');
-fprintf(fileID,'    %s%d%s\n', 'Elevation Cutoff: ',settings.PROC.elev_mask,' [°]');
+fprintf(fileID,'    %s%d%s\n', 'Elevation Cutoff: ',settings.PROC.elev_mask,' [Â°]');
 fprintf(fileID,'    %s%s%s\n', 'C/N0 Cutoff: ', num2str(settings.PROC.SNR_mask),' [db-Hz]');
 fprintf(fileID,'    %s%d\n', 'Signal Strength Threshold: ',settings.PROC.ss_thresh);
 
@@ -705,8 +703,40 @@ fprintf(fileID,'  raPPPid %s', DEF.version);
 %% close file
 fclose(fileID);
 
+end
 
-
-
-
-
+function str = weightSetting2Str(fun_setting)
+% Helper to convert complex weighting settings to string for logging
+if isstruct(fun_setting)
+    sys_fields = builtin('fieldnames', fun_setting);
+    parts = {};
+    for i = 1:numel(sys_fields)
+        sys = sys_fields{i};
+        funs = fun_setting.(sys);
+        fun_strs = {};
+        for j = 1:numel(funs)
+            if ischar(funs{j})
+                fun_strs{end+1} = funs{j};
+            else
+                fun_strs{end+1} = strrep(strrep(func2str(funs{j}), '@(SNR)', ''), '@(e)', '');
+            end
+        end
+        parts{end+1} = [sys ': ' strjoin(fun_strs, '; ')];
+    end
+    str = strjoin(parts, ' | ');
+elseif iscell(fun_setting)
+    fun_strs = {};
+    for i = 1:numel(fun_setting)
+        if ischar(fun_setting{i})
+            fun_strs{end+1} = fun_setting{i};
+        else
+            fun_strs{end+1} = strrep(strrep(func2str(fun_setting{i}), '@(SNR)', ''), '@(e)', '');
+        end
+    end
+    str = strjoin(fun_strs, '; ');
+elseif isa(fun_setting, 'function_handle')
+    str = strrep(strrep(func2str(fun_setting), '@(SNR)', ''), '@(e)', '');
+else
+    str = char(fun_setting);
+end
+end

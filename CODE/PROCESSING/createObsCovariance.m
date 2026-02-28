@@ -183,7 +183,24 @@ if strcmpi(settings.IONO.model,'Estimate with ... as constraint') && Adjust.cons
         iono_var = v_end;
     end
     % create covariance and weigth-matrix of ionospheric pseudo-observations
-    P_fac_iono = settings.ADJ.elev_weight_fun(elev*pi/180); 	% ionospheric pseudo-observations are elevation-weighted
+    % create covariance and weigth-matrix of ionospheric pseudo-observations
+    if isstruct(settings.ADJ.elev_weight_fun)
+        % If struct (system-specific), pick a representative function (e.g., GPS or default or first field)
+        field_names = builtin('fieldnames', settings.ADJ.elev_weight_fun);
+        if isfield(settings.ADJ.elev_weight_fun, 'GPS')
+            f_iono = settings.ADJ.elev_weight_fun.GPS{1};
+        elseif isfield(settings.ADJ.elev_weight_fun, 'default')
+            f_iono = settings.ADJ.elev_weight_fun.default{1};
+        else
+            f_iono = settings.ADJ.elev_weight_fun.(field_names{1}){1};
+        end
+        % Ensure P_fac_iono is a column vector of correct size
+        P_fac_iono = ones(size(elev)) .* f_iono(elev*pi/180);
+    elseif iscell(settings.ADJ.elev_weight_fun)
+        P_fac_iono = settings.ADJ.elev_weight_fun{1}(elev*pi/180);
+    else
+        P_fac_iono = settings.ADJ.elev_weight_fun(elev*pi/180);
+    end
     Q_iono = diag(iono_var ./ P_fac_iono(:,1));
     % combine to full covariance and weight-matrix
     Q = blkdiag(Q, Q_iono);

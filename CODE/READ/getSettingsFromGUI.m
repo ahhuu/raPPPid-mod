@@ -443,6 +443,28 @@ settings.ADJ.fac_GPS = str2double(handles.edit_weight_GPS.String);
 settings.ADJ.fac_GLO = str2double(handles.edit_weight_GLO.String);
 settings.ADJ.fac_GAL = str2double(handles.edit_weight_GAL.String);
 settings.ADJ.fac_BDS = str2double(handles.edit_weight_BDS.String);
+
+% BDS Orbit-Specific Weighting - 优先从GUI读取，否则使用默认值
+if isfield(handles, 'checkbox_bds_orbit_weighting') && ishghandle(handles.checkbox_bds_orbit_weighting)
+    settings.ADJ.bds_orbit_weighting = get(handles.checkbox_bds_orbit_weighting, 'Value');
+    settings.ADJ.bds_geo_factor = str2double(get(handles.edit_bds_geo_factor, 'String'));
+    settings.ADJ.bds_igso_factor = str2double(get(handles.edit_bds_igso_factor, 'String'));
+    settings.ADJ.bds_meo_factor = str2double(get(handles.edit_bds_meo_factor, 'String'));
+else
+    % GUI控件不存在时使用默认值（向后兼容）
+    if ~isfield(settings.ADJ, 'bds_orbit_weighting')
+        settings.ADJ.bds_orbit_weighting = false;
+    end
+    if ~isfield(settings.ADJ, 'bds_geo_factor')
+        settings.ADJ.bds_geo_factor = 0.3;
+    end
+    if ~isfield(settings.ADJ, 'bds_igso_factor')
+        settings.ADJ.bds_igso_factor = 1.0;
+    end
+    if ~isfield(settings.ADJ, 'bds_meo_factor')
+        settings.ADJ.bds_meo_factor = 1.0;
+    end
+end
 settings.ADJ.fac_QZSS= str2double(handles.edit_weight_QZSS.String);
 
 % frequency-specific standard-devations, boolean

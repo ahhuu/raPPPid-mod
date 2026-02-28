@@ -35,6 +35,14 @@ handles.edit_weight_GAL.String = sprintf('%.2f', F.weight_GAL);
 handles.edit_weight_BDS.String = sprintf('%.2f', F.weight_BDS);
 handles.edit_weight_QZSS.String = sprintf('%.2f', F.weight_QZSS);
 
+% BDS Orbit-Specific Weighting默认值（如果GUI控件存在）
+if isfield(handles, 'checkbox_bds_orbit_weighting')
+    handles.checkbox_bds_orbit_weighting.Value = 0;
+    handles.edit_bds_geo_factor.String = '0.30';
+    handles.edit_bds_igso_factor.String = '1.00';
+    handles.edit_bds_meo_factor.String = '1.00';
+end
+
 if strcmp(filter_type, 'Kalman Filter Iterative')
     % coordinates
     handles.edit_filter_coord_sigma0.String = sprintf('%.0f', F.KFI_coord_std);

@@ -9,45 +9,97 @@ function [funhandle] = SNR_ElevationWeightingFunction(funstring)
 % This function belongs to raPPPid, Copyright (c) 2023, M.F. Glaner
 % *************************************************************************
 
-% 检查是否已经是函数句柄
-if isa(funstring, 'function_handle')
+% check if somehow already processed (struct, handle, or cell)
+if isstruct(funstring) || isa(funstring,'function_handle') || iscell(funstring)
     funhandle = funstring;
     return
 end
 
-% 检查函数是否同时包含 SNR 和 e（大小写不敏感）
-contains_snr = contains(lower(funstring), 'snr');
-contains_e = contains(lower(funstring), 'e');
+% Split by semicolon to support frequency-specific and system-specific weighting
+parts = strsplit(funstring, ';');
+num_parts = numel(parts);
 
-if ~contains_snr || ~contains_e
-    error('Combined function must contain both "SNR" and "e".');
+% Initialize result structure
+S = struct();
+last_sys = 'default';
+has_system_prefix = false;
+
+for i = 1:num_parts
+    current_str = strtrim(parts{i});
+    
+    % Check for system prefix (e.g., "GPS:", "G:", "GAL:")
+    if contains(current_str, ':')
+        tokens = strsplit(current_str, ':');
+        prefix = upper(strtrim(tokens{1}));
+        current_str = strtrim(strjoin(tokens(2:end), ':')); % Remove prefix from formula
+        
+        % Map prefix to standard system names
+        switch prefix
+            case {'GPS', 'G'}
+                last_sys = 'GPS';
+            case {'GLO', 'R'}
+                last_sys = 'GLO';
+            case {'GAL', 'E'}
+                last_sys = 'GAL';
+            case {'BDS', 'C'}
+                last_sys = 'BDS';
+            case {'QZSS', 'J'}
+                last_sys = 'QZSS';
+            otherwise
+                last_sys = prefix;
+        end
+        has_system_prefix = true;
+    end
+    
+    % Handle empty strings after prefix removal
+    if isempty(current_str); continue; end
+    
+    % 检查函数是否同时包含 SNR 和 e（大小写不敏感）
+    contains_snr = contains(lower(current_str), 'snr');
+    contains_e = contains(lower(current_str), 'e');
+    
+    if ~contains_snr || ~contains_e
+        error('Combined function must contain both "SNR" and "e".');
+    end
+    
+    % 添加函数前缀
+    if ~strncmp(current_str, '@(SNR, e)', 9) && ~strncmp(current_str, '@(snr, e)', 9)
+        if strncmp(current_str, '@(', 2)
+            current_str = ['@(SNR, e)' strrep(current_str, '@(', '')];
+        else
+            current_str = ['@(SNR, e)' current_str];
+        end
+    end
+    
+    % 转换并进行调试测试
+    h = str2func(current_str);
+    try
+        h(30, 10*pi/180); % 试运行
+    catch ME
+        error('Function "%s" is invalid: %s', current_str, ME.message);
+    end
+    
+    % Store in struct
+    if ~isfield(S, last_sys)
+        S.(last_sys) = {h};
+    else
+        S.(last_sys){end+1} = h;
+    end
 end
 
-% 添加函数前缀（保留原始大小写）
-if ~strncmp(funstring, '@(SNR, e)', 9) && ~strncmp(funstring, '@(snr, e)', 9)
-    if strncmp(funstring, '@(', 2)
-        % 保留用户的变量大小写
-        funhandle = str2func(['@(SNR, e)' strrep(funstring, '@(', '')]);
+% Return format based on complexity
+fields = fieldnames(S);
+if ~has_system_prefix && numel(fields) == 1 && strcmp(fields{1}, 'default')
+    % Backward compatibility: return cell array or single handle
+    if numel(S.default) == 1
+        funhandle = S.default{1};
     else
-        % 默认使用大写 SNR
-        funhandle = str2func(['@(SNR, e)' funstring]);
+        funhandle = S.default;
     end
 else
-    % 如果已经是正确格式，直接转换
-    funhandle = str2func(funstring);
+    % System-specific: return the full struct
+    funhandle = S;
 end
 
-    % 添加调试输出
-    fprintf('输入的函数字符串: %s\n', funstring);
-    fprintf('生成的函数句柄: %s\n', func2str(funhandle));
-    
-    % 测试函数句柄是否能正常工作
-    try
-        test_result = funhandle(30, 10*pi/180);
-        fprintf('测试结果: %.6f\n', test_result);
-    catch ME
-        fprintf('函数测试失败: %s\n', ME.message);
-    end
-    
-    return;
+return;
 end

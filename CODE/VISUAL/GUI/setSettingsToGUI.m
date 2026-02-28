@@ -822,6 +822,26 @@ catch
 	set(handles.edit_weight_QZSS,'String', sprintf('%.2f', 1));
 end
 
+% BDS Orbit-Specific Weighting - 回显到GUI
+if isfield(handles, 'checkbox_bds_orbit_weighting') && ishghandle(handles.checkbox_bds_orbit_weighting)
+    if isfield(structure.ADJ, 'bds_orbit_weighting')
+        set(handles.checkbox_bds_orbit_weighting, 'Value', structure.ADJ.bds_orbit_weighting);
+        set(handles.edit_bds_geo_factor, 'String', sprintf('%.2f', structure.ADJ.bds_geo_factor));
+        set(handles.edit_bds_igso_factor, 'String', sprintf('%.2f', structure.ADJ.bds_igso_factor));
+        set(handles.edit_bds_meo_factor, 'String', sprintf('%.2f', structure.ADJ.bds_meo_factor));
+        
+        % 根据复选框状态启用/禁用输入框
+        if structure.ADJ.bds_orbit_weighting
+            set(handles.edit_bds_geo_factor, 'Enable', 'on');
+            set(handles.edit_bds_igso_factor, 'Enable', 'on');
+            set(handles.edit_bds_meo_factor, 'Enable', 'on');
+            set(handles.text_bds_geo, 'Enable', 'on');
+            set(handles.text_bds_igso, 'Enable', 'on');
+            set(handles.text_bds_meo, 'Enable', 'on');
+        end
+    end
+end
+
 % Std Code and Phase and Ionosphere
 set(handles.edit_Std_CA_Code, 'String', sprintf('%.3f', sqrt(structure.ADJ.var_code))  );
 set(handles.edit_Std_Phase,   'String', sprintf('%.3f', sqrt(structure.ADJ.var_phase)) );

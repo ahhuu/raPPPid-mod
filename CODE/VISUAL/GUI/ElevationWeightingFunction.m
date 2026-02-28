@@ -12,16 +12,79 @@ function [funhandle] = ElevationWeightingFunction(funstring)
 % This function belongs to raPPPid, Copyright (c) 2023, M.F. Glaner
 % *************************************************************************
 
-% check if somehow already a function handle
-if isa(funstring,'function_handle')
+% check if somehow already processed (struct, handle, or cell)
+if isstruct(funstring) || isa(funstring,'function_handle') || iscell(funstring)
     funhandle = funstring;
     return
 end
 
-% check string for valid beginning for conversion
-if funstring(1) ~= '@' || ~strcmp(funstring, '@(e)')
-    funstring = ['@(e)' funstring];
+% Split by semicolon to support frequency-specific and system-specific weighting
+parts = strsplit(funstring, ';');
+num_parts = numel(parts);
+
+% Initialize result structure
+S = struct();
+last_sys = 'default';
+has_system_prefix = false;
+
+for i = 1:num_parts
+    current_str = strtrim(parts{i});
+    
+    % Check for system prefix (e.g., "GPS:", "G:", "GAL:")
+    if contains(current_str, ':')
+        tokens = strsplit(current_str, ':');
+        prefix = upper(strtrim(tokens{1}));
+        current_str = strtrim(strjoin(tokens(2:end), ':')); % Remove prefix from formula
+        
+        % Map prefix to standard system names
+        switch prefix
+            case {'GPS', 'G'}
+                last_sys = 'GPS';
+            case {'GLO', 'R'}
+                last_sys = 'GLO';
+            case {'GAL', 'E'}
+                last_sys = 'GAL';
+            case {'BDS', 'C'}
+                last_sys = 'BDS';
+            case {'QZSS', 'J'}
+                last_sys = 'QZSS';
+            otherwise
+                % If unknown prefix, treat it as part of the formula or a typo
+                % but here we assume it's a prefix if ':' exists
+                last_sys = prefix;
+        end
+        has_system_prefix = true;
+    end
+    
+    % Handle empty strings after prefix removal
+    if isempty(current_str); continue; end
+    
+    % check string for valid beginning for conversion
+    if ~strncmp(current_str, '@(', 2)
+        current_str = ['@(e)' current_str];
+    end
+    
+    % convert string to function handle
+    h = str2func(current_str);
+    
+    % Store in struct
+    if ~isfield(S, last_sys)
+        S.(last_sys) = {h};
+    else
+        S.(last_sys){end+1} = h;
+    end
 end
 
-% convert string to function handle
-funhandle = str2func(funstring);
+% Return format based on complexity
+fields = fieldnames(S);
+if ~has_system_prefix && numel(fields) == 1 && strcmp(fields{1}, 'default')
+    % Backward compatibility: return cell array or single handle
+    if numel(S.default) == 1
+        funhandle = S.default{1};
+    else
+        funhandle = S.default;
+    end
+else
+    % System-specific: return the full struct
+    funhandle = S;
+end

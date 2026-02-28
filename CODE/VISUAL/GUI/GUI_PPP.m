@@ -4792,3 +4792,31 @@ if ~(path_1(end) == '/' || path_1(end) == '\')
 end
 path_full = strcat(path_1, slash_1, path_2);
 end
+
+
+%% BDS Orbit-Specific Weighting Checkbox Callback
+function checkbox_bds_orbit_weighting_Callback(hObject, eventdata, handles)
+% 当BDS轨道权重复选框状态改变时的回调函数
+% 控制GEO/IGSO/MEO输入框的启用/禁用状态
+
+if get(hObject, 'Value') == 1
+    % 启用输入框和标签
+    set(handles.edit_bds_geo_factor, 'Enable', 'on');
+    set(handles.edit_bds_igso_factor, 'Enable', 'on');
+    set(handles.edit_bds_meo_factor, 'Enable', 'on');
+    set(handles.text_bds_geo, 'Enable', 'on');
+    set(handles.text_bds_igso, 'Enable', 'on');
+    set(handles.text_bds_meo, 'Enable', 'on');
+else
+    % 禁用输入框和标签
+    set(handles.edit_bds_geo_factor, 'Enable', 'off');
+    set(handles.edit_bds_igso_factor, 'Enable', 'off');
+    set(handles.edit_bds_meo_factor, 'Enable', 'off');
+    set(handles.text_bds_geo, 'Enable', 'inactive');
+    set(handles.text_bds_igso, 'Enable', 'inactive');
+    set(handles.text_bds_meo, 'Enable', 'inactive');
+end
+
+guidata(hObject, handles);
+end
+

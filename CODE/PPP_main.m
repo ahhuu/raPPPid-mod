@@ -130,7 +130,7 @@ end
 % create init_ambiguities
 init_ambiguities = NaN(3, 410);     % columns = satellites, rows = frequencies
 
-% initialize matrices for Hatch-Melbourne-Wübbena (HMW) LC between
+% initialize matrices for Hatch-Melbourne-Wé»šbena (HMW) LC between
 % different frequencies, e.g., for GPS L1-L2-L5 processing
 HMW_12 = []; HMW_23 = []; HMW_13 = [];
 if settings.AMBFIX.bool_AMBFIX
@@ -348,6 +348,11 @@ for q = q_range         % loop over epochs
         saveData(Epoch, q, satellites, storeData, settings, Adjust, model, model_save, HMW_12, HMW_23, HMW_13);
     if settings.EXP.obs_epochheader; obs.epochheader(q) = cellstr(Epoch.rinex_header); end
     Epoch.delta_windup = model.delta_windup;        % [cycles], for calculation of Wind-Up correction in next epoch
+    
+    % è¾“å‡ºå½“å‰å†å…ƒçš„å«æ˜Ÿåæ ‡ä¿¡æ¯ï¼ˆå¦‚æœå¯ç”¨ï¼‰
+    if settings.EXP.SatelliteCoordinates_output
+        createSatelliteCoordinatesOutput(Epoch, input, settings, model);
+    end
       
     % update waitbar
     if bool_print && mod(q,q_update) == 0 && ishandle(WBAR)
@@ -432,15 +437,10 @@ if settings.EXP.data4plot
     end
 end
 
-% ¼ì²éÊÇ·ñĞèÒªÊä³öÎ±¾à²Ğ²î¡¢¸ß¶È½Ç¡¢ĞÅÔë±ÈĞÅÏ¢
+% æ£€æŸ¥æ˜¯å¦éœ€è¦è¾“å‡ºä¼ªè·æ®‹å·®ã€é«˜åº¦è§’ã€ä¿¡å™ªæ¯”ä¿¡æ¯
 if settings.EXP.residuals_output
     outputPath = fullfile(settings.PROC.output_dir, 'residuals_info.txt');
-    createResidualsOutput(settings, storeData, satellites, settings.PROC.epochs, outputPath);
-end
-
-% ¼ì²éÊÇ·ñĞèÒªÊä³öÎÀĞÇ×ø±êĞÅÏ¢
-if settings.EXP.SatelliteCoordinates_output
-    createSatelliteCoordinatesOutput(Epoch, input, settings);
+    createResidualsOutput(settings, storeData, satellites, settings.PROC.epochs, outputPath, input);
 end
 
 % push to workspace

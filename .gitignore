@@ -1,0 +1,27 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Matlab temporary/build artifacts
+*.asv
+*.m~
+*.autosave
+*.mex*
+slprj/
+codegen/
+
+# Local run artifacts
+.history/
+SNR/
+*.log
+*.tmp
+*.bak
+
+# Local agent/config notes
+AGENTS.md
+
+# Accidental local file
+tatus
+
