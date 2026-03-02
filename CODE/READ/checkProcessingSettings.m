@@ -101,11 +101,14 @@ end
 if ~isfield(settings.BIASES, 'bds23_isb_prior_sigma_m')
     settings.BIASES.bds23_isb_prior_sigma_m = 3.0;
 end
+if ~isfield(settings.BIASES, 'bds23_isb_fixed_m')
+    settings.BIASES.bds23_isb_fixed_m = 0;
+end
 % Validate ISB mode string
 if settings.BIASES.estimate_bds23_isb
-    if ~ismember(settings.BIASES.bds23_isb_mode, {'free', 'constrained'})
+    if ~ismember(settings.BIASES.bds23_isb_mode, {'free', 'constrained', 'fixed'})
         if ~prebatch_check
-            errordlg('Invalid bds23_isb_mode. Must be ''free'' or ''constrained''.', windowname);
+            errordlg('Invalid bds23_isb_mode. Must be ''free'', ''constrained'' or ''fixed''.', windowname);
         end
         settings.BIASES.bds23_isb_mode = 'free';
     end
@@ -119,6 +122,15 @@ if settings.BIASES.estimate_bds23_isb
                 'Falling back to free estimation mode.'}, windowname);
         end
         settings.BIASES.bds23_isb_mode = 'free';
+    end
+    if strcmp(settings.BIASES.bds23_isb_mode, 'fixed')
+        if ~isfinite(settings.BIASES.bds23_isb_fixed_m)
+            if ~prebatch_check
+                warndlg({'BDS-2/BDS-3 ISB fixed mode is enabled but Fixed[m] is invalid.', '', ...
+                    'Falling back to 0.0000 m fixed correction.'}, windowname);
+            end
+            settings.BIASES.bds23_isb_fixed_m = 0;
+        end
     end
 end
 % BDS-2/BDS-3 ISB requires BDS to be enabled

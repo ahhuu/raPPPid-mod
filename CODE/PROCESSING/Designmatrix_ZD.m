@@ -35,8 +35,9 @@ isQZSS = repmat(Epoch.qzss, num_freq, 1);
 
 % BDS-2/BDS-3 ISB support
 bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
-if bds23_isb_on
-    isBDS2 = repmat(Epoch.bds2, num_freq, 1);
+bds23_isb_state_on = bds23_isb_on && (~isfield(settings.BIASES, 'bds23_isb_mode') || ...
+    ~strcmp(settings.BIASES.bds23_isb_mode, 'fixed'));
+if bds23_isb_state_on
     isBDS3 = repmat(Epoch.bds3, num_freq, 1);
 end
 
@@ -80,13 +81,9 @@ end
 % receiver clock offsets
 dR_time_dcb(:, 4) = isGLO;   	% GLONASS
 dR_time_dcb(:, 7) = isGAL;   	% Galileo
-if bds23_isb_on
-    dR_time_dcb(:,10) = isBDS;     	% BeiDou common clock (all BDS sats)
-else
-    dR_time_dcb(:,10) = isBDS;    	% BeiDou (all)
-end
+dR_time_dcb(:,10) = isBDS;    	% BeiDou common clock (all BDS sats)
 dR_time_dcb(:,13) = isQZSS;   	% QZSS
-if bds23_isb_on
+if bds23_isb_state_on
     dR_time_dcb(:,16) = isBDS3;    	% BeiDou-3 (param 20)
 end
 % Differential Code Biases

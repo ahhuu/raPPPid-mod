@@ -16,10 +16,12 @@ function calibrate_bds23_isb(varargin)
 %   3. The script extracts the converged ISB median, prints statistics
 %   4. Optionally writes the calibrated ISB into WORK/settings.mat
 %
-% The calibrated ISB can then be used in 'constrained' mode:
+% The calibrated ISB can then be used in 'constrained' mode or 'fixed' mode:
 %   settings.BIASES.bds23_isb_mode          = 'constrained';
 %   settings.BIASES.bds23_isb_prior_m       = <calibrated value>;
 %   settings.BIASES.bds23_isb_prior_sigma_m = 3.0;  % adjust as needed
+%   settings.BIASES.bds23_isb_mode          = 'fixed';
+%   settings.BIASES.bds23_isb_fixed_m       = <calibrated median value>;
 %
 % This function belongs to raPPPid, Copyright (c) 2023, M.F. Glaner
 % *************************************************************************
@@ -136,10 +138,12 @@ recommended_sigma_m = max(combined_std_m * 3, 1.0);  % 3-sigma or at least 1m
 fprintf('Recommended settings:\n');
 fprintf('  Prior[m] = %.4f   (%+.2f ns)\n', recommended_prior_m, recommended_prior_m * m2ns);
 fprintf('  Sigma[m] = %.2f\n\n', recommended_sigma_m);
+fprintf('  Fixed[m] = %.4f   (%+.2f ns)\n\n', recommended_prior_m, recommended_prior_m * m2ns);
 fprintf('How to use:\n');
 fprintf('  1. In GUI: check BDS-2/3 ISB, select "constrained" in dropdown\n');
 fprintf('  2. Enter the above Prior[m] and Sigma[m] values\n');
-fprintf('  3. Click RUN\n\n');
+fprintf('  3. Or select "fixed" and enter Fixed[m] = median value\n');
+fprintf('  4. Click RUN\n\n');
 
 %% Plot ISB time series
 figure('Name', 'BDS-2/BDS-3 ISB Calibration', 'NumberTitle', 'off');

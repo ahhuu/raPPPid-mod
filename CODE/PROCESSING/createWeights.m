@@ -19,7 +19,7 @@ function P_diag = createWeights(Epoch, elev, settings)
 % *************************************************************************
 
 % 声明persistent变量（必须在函数开头）
-persistent bds_orbit_diagnostic_data diagnostic_printed;
+persistent bds_orbit_diagnostic_data diagnostic_printed effective_obs_diagnostic_data;
 
 num_freq = settings.INPUT.num_freqs;        % number of input frequencies
 n_sats = numel(Epoch.sats);                 % # sats in current epoch
@@ -170,7 +170,100 @@ P_diag(P_diag <= 0) = 10^-6;
 try
     % 在起始历元手动重置标志位
     if isfield(Epoch, 'q') && isfield(settings, 'PROC') && isfield(settings.PROC, 'epochs') && ...
-       Epoch.q == settings.PROC.epochs(1); diagnostic_printed = false; end
+       Epoch.q == settings.PROC.epochs(1)
+        diagnostic_printed = false;
+        effective_obs_diagnostic_data = struct( ...
+            'epochs_count', 0, ...
+            'bds2_obs_total', 0, ...
+            'bds3_obs_total', 0, ...
+            'bds2_sat_sum', 0, ...
+            'bds3_sat_sum', 0, ...
+            'bds2_obs_per_epoch_min', inf, ...
+            'bds2_obs_per_epoch_max', 0, ...
+            'bds3_obs_per_epoch_min', inf, ...
+            'bds3_obs_per_epoch_max', 0, ...
+            'bds2_sats_visible_all', [], ...
+            'bds3_sats_visible_all', [], ...
+            'bds2_sats_all', [], ...
+            'bds3_sats_all', [], ...
+            'epoch_q_seen', [] ...
+        );
+    end
+
+    % 逐历元累积 BDS-2/BDS-3 有效观测统计（用于最终输出）
+    % 注意：createWeights在同一历元可能被多次调用，这里按唯一Epoch.q去重
+    if isempty(effective_obs_diagnostic_data)
+        effective_obs_diagnostic_data = struct( ...
+            'epochs_count', 0, ...
+            'bds2_obs_total', 0, ...
+            'bds3_obs_total', 0, ...
+            'bds2_sat_sum', 0, ...
+            'bds3_sat_sum', 0, ...
+            'bds2_obs_per_epoch_min', inf, ...
+            'bds2_obs_per_epoch_max', 0, ...
+            'bds3_obs_per_epoch_min', inf, ...
+            'bds3_obs_per_epoch_max', 0, ...
+            'bds2_sats_visible_all', [], ...
+            'bds3_sats_visible_all', [], ...
+            'bds2_sats_all', [], ...
+            'bds3_sats_all', [], ...
+            'epoch_q_seen', [] ...
+        );
+    end
+
+    do_accumulate = false;
+    if isfield(Epoch, 'q')
+        if isempty(effective_obs_diagnostic_data.epoch_q_seen)
+            do_accumulate = true;
+        else
+            do_accumulate = ~ismember(Epoch.q, effective_obs_diagnostic_data.epoch_q_seen);
+        end
+    end
+
+    if do_accumulate
+        is_bds2_visible = false(n_sats,1);
+        is_bds3_visible = false(n_sats,1);
+        for k = 1:n_sats
+            if isfield(Epoch, 'bds') && Epoch.bds(k)
+                is_bds2_visible(k) = isBDS2sat(Epoch.sats(k));
+                is_bds3_visible(k) = isBDS3sat(Epoch.sats(k));
+            end
+        end
+
+        valid_obs_mask = getUsedObservationMask(Epoch, n_sats, num_freq);
+        is_bds2 = false(n_sats,1);
+        is_bds3 = false(n_sats,1);
+        for k = 1:n_sats
+            if isfield(Epoch, 'bds') && Epoch.bds(k)
+                is_bds2(k) = isBDS2sat(Epoch.sats(k));
+                is_bds3(k) = isBDS3sat(Epoch.sats(k));
+            end
+        end
+
+        bds2_mask_obs = valid_obs_mask(is_bds2,:);
+        bds3_mask_obs = valid_obs_mask(is_bds3,:);
+        bds2_obs_this = sum(bds2_mask_obs(:));
+        bds3_obs_this = sum(bds3_mask_obs(:));
+        sat_has_valid = any(valid_obs_mask, 2);
+        bds2_sat_this = sum(is_bds2 & sat_has_valid);
+        bds3_sat_this = sum(is_bds3 & sat_has_valid);
+
+        effective_obs_diagnostic_data.epochs_count = effective_obs_diagnostic_data.epochs_count + 1;
+        effective_obs_diagnostic_data.bds2_obs_total = effective_obs_diagnostic_data.bds2_obs_total + bds2_obs_this;
+        effective_obs_diagnostic_data.bds3_obs_total = effective_obs_diagnostic_data.bds3_obs_total + bds3_obs_this;
+        effective_obs_diagnostic_data.bds2_sat_sum = effective_obs_diagnostic_data.bds2_sat_sum + bds2_sat_this;
+        effective_obs_diagnostic_data.bds3_sat_sum = effective_obs_diagnostic_data.bds3_sat_sum + bds3_sat_this;
+        effective_obs_diagnostic_data.bds2_obs_per_epoch_min = min(effective_obs_diagnostic_data.bds2_obs_per_epoch_min, bds2_obs_this);
+        effective_obs_diagnostic_data.bds2_obs_per_epoch_max = max(effective_obs_diagnostic_data.bds2_obs_per_epoch_max, bds2_obs_this);
+        effective_obs_diagnostic_data.bds3_obs_per_epoch_min = min(effective_obs_diagnostic_data.bds3_obs_per_epoch_min, bds3_obs_this);
+        effective_obs_diagnostic_data.bds3_obs_per_epoch_max = max(effective_obs_diagnostic_data.bds3_obs_per_epoch_max, bds3_obs_this);
+        effective_obs_diagnostic_data.bds2_sats_visible_all = unique([effective_obs_diagnostic_data.bds2_sats_visible_all; Epoch.sats(is_bds2_visible)]);
+        effective_obs_diagnostic_data.bds3_sats_visible_all = unique([effective_obs_diagnostic_data.bds3_sats_visible_all; Epoch.sats(is_bds3_visible)]);
+        effective_obs_diagnostic_data.bds2_sats_all = unique([effective_obs_diagnostic_data.bds2_sats_all; Epoch.sats(is_bds2 & sat_has_valid)]);
+        effective_obs_diagnostic_data.bds3_sats_all = unique([effective_obs_diagnostic_data.bds3_sats_all; Epoch.sats(is_bds3 & sat_has_valid)]);
+        effective_obs_diagnostic_data.epoch_q_seen = [effective_obs_diagnostic_data.epoch_q_seen; Epoch.q];
+
+    end
     
     % 检测是否为最后一个历元 (settings.PROC.epochs(2) 是结束历元索引)
     if isfield(Epoch, 'q') && isfield(settings, 'PROC') && isfield(settings.PROC, 'epochs') && ...
@@ -182,15 +275,28 @@ try
         
         for i = 1:n_sats
             prn = Epoch.sats(i);
-            if Epoch.gps(i); sys = 'GPS'; elseif Epoch.glo(i); sys = 'GLO';
-            elseif Epoch.gal(i); sys = 'GAL'; elseif Epoch.bds(i); sys = 'BDS';
-            else; sys = 'OTHER'; end
+            if Epoch.gps(i)
+                sys = 'GPS';
+            elseif Epoch.glo(i)
+                sys = 'GLO';
+            elseif Epoch.gal(i)
+                sys = 'GAL';
+            elseif Epoch.bds(i)
+                sys = 'BDS';
+            else
+                sys = 'OTHER';
+            end
             
             % 获取该卫星使用的函数组
-            if settings.ADJ.weight_elev; fun_setting = settings.ADJ.elev_weight_fun;
-            elseif settings.ADJ.weight_sign_str; fun_setting = settings.ADJ.snr_weight_fun;
-            elseif settings.ADJ.weight_snr_elev; fun_setting = settings.ADJ.snr_elev_weight_fun;
-            else; fun_setting = @(x) 1; end
+            if settings.ADJ.weight_elev
+                fun_setting = settings.ADJ.elev_weight_fun;
+            elseif settings.ADJ.weight_sign_str
+                fun_setting = settings.ADJ.snr_weight_fun;
+            elseif settings.ADJ.weight_snr_elev
+                fun_setting = settings.ADJ.snr_elev_weight_fun;
+            else
+                fun_setting = @(x) 1;
+            end
             
             funs = getFunctionsForSat(i, Epoch, fun_setting);
             
@@ -219,6 +325,61 @@ try
             end
         end
         fprintf('%s\n\n', repmat('=', 45));
+
+        % --- 解算后有效观测统计（BDS-2 / BDS-3）---
+        if ~isempty(effective_obs_diagnostic_data) && effective_obs_diagnostic_data.epochs_count > 0
+            ep_cnt = effective_obs_diagnostic_data.epochs_count;
+            b2_obs_mean = effective_obs_diagnostic_data.bds2_obs_total / ep_cnt;
+            b3_obs_mean = effective_obs_diagnostic_data.bds3_obs_total / ep_cnt;
+            b2_sat_mean = effective_obs_diagnostic_data.bds2_sat_sum / ep_cnt;
+            b3_sat_mean = effective_obs_diagnostic_data.bds3_sat_sum / ep_cnt;
+            isb_mode = 'off';
+            if isfield(settings, 'BIASES') && isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb
+                isb_mode = 'free';
+                if isfield(settings.BIASES, 'bds23_isb_mode')
+                    isb_mode = settings.BIASES.bds23_isb_mode;
+                end
+            end
+            fprintf('%s [raPPPid] Effective Observation Statistics (BDS-2/BDS-3) %s\n', repmat('=',1,8), repmat('=',1,8));
+            fprintf('BDS23 ISB mode: %s\n', isb_mode);
+            if strcmp(isb_mode, 'fixed') && isfield(settings.BIASES, 'bds23_isb_fixed_m')
+                fprintf('BDS23 fixed correction: %.4f m (%.2f ns)\n', settings.BIASES.bds23_isb_fixed_m, settings.BIASES.bds23_isb_fixed_m * 1e9 / 299792458);
+            end
+            fprintf('Processed epochs: %d\n', ep_cnt);
+            fprintf('BDS-2 valid observations: total=%d, mean/epoch=%.2f, min=%d, max=%d\n', ...
+                effective_obs_diagnostic_data.bds2_obs_total, b2_obs_mean, ...
+                effective_obs_diagnostic_data.bds2_obs_per_epoch_min, effective_obs_diagnostic_data.bds2_obs_per_epoch_max);
+            fprintf('BDS-3 valid observations: total=%d, mean/epoch=%.2f, min=%d, max=%d\n', ...
+                effective_obs_diagnostic_data.bds3_obs_total, b3_obs_mean, ...
+                effective_obs_diagnostic_data.bds3_obs_per_epoch_min, effective_obs_diagnostic_data.bds3_obs_per_epoch_max);
+            fprintf('BDS-2 valid sats/epoch: mean=%.2f\n', b2_sat_mean);
+            fprintf('BDS-3 valid sats/epoch: mean=%.2f\n', b3_sat_mean);
+            if ~isempty(effective_obs_diagnostic_data.bds2_sats_all)
+                fprintf('BDS-2 satellites observed: %s\n', mat2str(sort(effective_obs_diagnostic_data.bds2_sats_all)'));
+            end
+            if ~isempty(effective_obs_diagnostic_data.bds3_sats_all)
+                fprintf('BDS-3 satellites observed: %s\n', mat2str(sort(effective_obs_diagnostic_data.bds3_sats_all)'));
+            end
+
+            % 对比输出：可见卫星 vs 有效卫星（用于定位被过滤卫星）
+            if ~isempty(effective_obs_diagnostic_data.bds2_sats_visible_all)
+                bds2_visible_sorted = sort(effective_obs_diagnostic_data.bds2_sats_visible_all)';
+                fprintf('BDS-2 satellites visible : %s\n', mat2str(bds2_visible_sorted));
+                bds2_filtered = setdiff(effective_obs_diagnostic_data.bds2_sats_visible_all, effective_obs_diagnostic_data.bds2_sats_all);
+                if ~isempty(bds2_filtered)
+                    fprintf('BDS-2 filtered (visible but not valid): %s\n', mat2str(sort(bds2_filtered)'));
+                end
+            end
+            if ~isempty(effective_obs_diagnostic_data.bds3_sats_visible_all)
+                bds3_visible_sorted = sort(effective_obs_diagnostic_data.bds3_sats_visible_all)';
+                fprintf('BDS-3 satellites visible : %s\n', mat2str(bds3_visible_sorted));
+                bds3_filtered = setdiff(effective_obs_diagnostic_data.bds3_sats_visible_all, effective_obs_diagnostic_data.bds3_sats_all);
+                if ~isempty(bds3_filtered)
+                    fprintf('BDS-3 filtered (visible but not valid): %s\n', mat2str(sort(bds3_filtered)'));
+                end
+            end
+            fprintf('%s\n\n', repmat('=', 66));
+        end
         diagnostic_printed = true;
         
         % 输出BDS轨道权重诊断（在现有诊断之后）
@@ -272,12 +433,19 @@ function funs = getFunctionsForSat(sat_idx, Epoch, fun_setting)
 % Helper to fetch the correct weighting function for a specific satellite system
 if isstruct(fun_setting)
     % Identify system
-    if isfield(Epoch, 'gps') && Epoch.gps(sat_idx); sys = 'GPS';
-    elseif isfield(Epoch, 'glo') && Epoch.glo(sat_idx); sys = 'GLO';
-    elseif isfield(Epoch, 'gal') && Epoch.gal(sat_idx); sys = 'GAL';
-    elseif isfield(Epoch, 'bds') && Epoch.bds(sat_idx); sys = 'BDS';
-    elseif isfield(Epoch, 'qzss') && Epoch.qzss(sat_idx); sys = 'QZSS';
-    else; sys = 'default'; end
+    if isfield(Epoch, 'gps') && Epoch.gps(sat_idx)
+        sys = 'GPS';
+    elseif isfield(Epoch, 'glo') && Epoch.glo(sat_idx)
+        sys = 'GLO';
+    elseif isfield(Epoch, 'gal') && Epoch.gal(sat_idx)
+        sys = 'GAL';
+    elseif isfield(Epoch, 'bds') && Epoch.bds(sat_idx)
+        sys = 'BDS';
+    elseif isfield(Epoch, 'qzss') && Epoch.qzss(sat_idx)
+        sys = 'QZSS';
+    else
+        sys = 'default';
+    end
     
     if isfield(fun_setting, sys)
         funs = fun_setting.(sys);
@@ -319,3 +487,27 @@ P_diag(:,frq) = P_diag(:,frq) ./ q_R;        	% weight for observations
 P_diag(SNR >= s_1, frq) = 1;                    % 1 for C/N0 > snr_1
 
 end
+
+
+function used_obs_mask = getUsedObservationMask(Epoch, n_sats, num_freq)
+% Build a [n_sats x num_freq] mask aligned with actual processing usage.
+% Observation is counted as used when:
+%   1) it is not excluded by processing flags (cutoff/check_omc/quality checks)
+%   2) code observation is finite (code equations are always used in current models)
+
+used_obs_mask = true(n_sats, num_freq);
+
+if isfield(Epoch, 'exclude') && ~isempty(Epoch.exclude)
+    n_cols_ex = min([num_freq, size(Epoch.exclude,2)]);
+    used_obs_mask = false(n_sats, num_freq);
+    used_obs_mask(:,1:n_cols_ex) = ~Epoch.exclude(:,1:n_cols_ex);
+end
+
+if isfield(Epoch, 'code') && ~isempty(Epoch.code)
+    n_cols_code = min([num_freq, size(Epoch.code,2)]);
+    code_ok = ~isnan(Epoch.code(:,1:n_cols_code)) & isfinite(Epoch.code(:,1:n_cols_code));
+    used_obs_mask(:,1:n_cols_code) = used_obs_mask(:,1:n_cols_code) & code_ok;
+end
+end
+
+

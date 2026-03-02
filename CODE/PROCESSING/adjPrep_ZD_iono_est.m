@@ -97,9 +97,11 @@ if ~Adjust.float
     end
     % BDS-3 ISB: additional parameters at indices 20-22
     bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
-    bds23_isb_constrained = bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode') && ...
+    bds23_isb_state_on = bds23_isb_on && (~isfield(settings.BIASES, 'bds23_isb_mode') || ...
+        ~strcmp(settings.BIASES.bds23_isb_mode, 'fixed'));
+    bds23_isb_constrained = bds23_isb_state_on && isfield(settings.BIASES, 'bds23_isb_mode') && ...
         strcmp(settings.BIASES.bds23_isb_mode, 'constrained');
-    if bds23_isb_on && BDS_ON
+    if bds23_isb_state_on && BDS_ON
         if bds23_isb_constrained
             % Constrained mode: tight prior from calibration
             param_sigma(20,20) = settings.BIASES.bds23_isb_prior_sigma_m^2;  % prior variance [m^2]
@@ -182,7 +184,7 @@ if ~Adjust.float
             Noise(19,19) = FILTER.Q_DCB * dcb_13_on;        % QZSS DCB between frequency 1 and 3
         end
         % BDS-3 ISB noise
-        if bds23_isb_on && BDS_ON
+        if bds23_isb_state_on && BDS_ON
             if bds23_isb_constrained
                 Noise(20,20) = 0.001;           % tiny drift [m^2/h], near-constant
             else
@@ -211,7 +213,7 @@ if ~Adjust.float
         Transition(18,18)  	= FILTER.dynmodel_DCB;          % dynamic model QZSS DCB between frequency 1 and 2
         Transition(19,19) 	= FILTER.dynmodel_DCB;          % dynamic model QZSS DCB between frequency 1 and 3
         % BDS-3 ISB transition
-        if bds23_isb_on
+        if bds23_isb_state_on
             if bds23_isb_constrained
                 Transition(20,20) = 1;                      % random constant
             else

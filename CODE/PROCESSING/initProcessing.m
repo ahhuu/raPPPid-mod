@@ -46,8 +46,14 @@ Adjust.NO_PARAM = DEF.NO_PARAM_ZD;
 if decoupled_clock_model
     Adjust.NO_PARAM = DEF.NO_PARAM_DCM;
 end
-% BDS-2/BDS-3 ISB: extend parameter count by 3 (BDS-3 clock + 2 DCBs)
-if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb && ~decoupled_clock_model
+% BDS-2/BDS-3 ISB state estimation: extend parameter count by 3 (BDS-3 clock + 2 DCBs)
+bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
+bds23_isb_mode = 'free';
+if bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode')
+    bds23_isb_mode = settings.BIASES.bds23_isb_mode;
+end
+bds23_isb_state_on = bds23_isb_on && ~strcmp(bds23_isb_mode, 'fixed');
+if bds23_isb_state_on && ~decoupled_clock_model
     Adjust.NO_PARAM = DEF.NO_PARAM_ZD_BDS23;   % 22
 end
 % Initialize Adjust for 1st epoch

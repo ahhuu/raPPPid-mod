@@ -175,6 +175,13 @@ if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bd
             settings.BIASES.bds23_isb_prior_m * 1e9 / 299792458));
         fprintf(fileID,'    %s\n',sprintf('  ISB prior sigma: %.2f m', ...
             settings.BIASES.bds23_isb_prior_sigma_m));
+    elseif strcmp(isb_mode, 'fixed')
+        fixed_m = 0;
+        if isfield(settings.BIASES, 'bds23_isb_fixed_m')
+            fixed_m = settings.BIASES.bds23_isb_fixed_m;
+        end
+        fprintf(fileID,'    %s\n',sprintf('  ISB fixed correction: %.4f m (%.2f ns)', ...
+            fixed_m, fixed_m * 1e9 / 299792458));
     end
 end
 

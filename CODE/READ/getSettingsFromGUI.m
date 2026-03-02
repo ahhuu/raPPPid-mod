@@ -244,7 +244,7 @@ else
         settings.BIASES.estimate_bds23_isb = false;
     end
 end
-% BDS-2/BDS-3 ISB mode from dropdown (free / constrained)
+% BDS-2/BDS-3 ISB mode from dropdown (free / constrained / fixed)
 if isfield(handles, 'popupmenu_bds23_isb_mode') && ishghandle(handles.popupmenu_bds23_isb_mode)
     mode_items = get(handles.popupmenu_bds23_isb_mode, 'String');
     mode_val = get(handles.popupmenu_bds23_isb_mode, 'Value');
@@ -267,6 +267,14 @@ if isfield(handles, 'edit_bds23_isb_sigma') && ishghandle(handles.edit_bds23_isb
     settings.BIASES.bds23_isb_prior_sigma_m = val;
 elseif ~isfield(settings.BIASES, 'bds23_isb_prior_sigma_m')
     settings.BIASES.bds23_isb_prior_sigma_m = 3.0;
+end
+% ISB fixed correction value [m] from edit field
+if isfield(handles, 'edit_bds23_isb_fixed') && ishghandle(handles.edit_bds23_isb_fixed)
+    val = str2double(get(handles.edit_bds23_isb_fixed, 'String'));
+    if isnan(val), val = 0; end
+    settings.BIASES.bds23_isb_fixed_m = val;
+elseif ~isfield(settings.BIASES, 'bds23_isb_fixed_m')
+    settings.BIASES.bds23_isb_fixed_m = 0;
 end
 
 % Phase

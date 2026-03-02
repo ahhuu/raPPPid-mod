@@ -22,7 +22,7 @@
 
 | 索引 | 新参数符号 | 含义 | 滤波模型 |
 |---|---|---|---|
-| `param(20)` | ISB_BDS3 | BDS-3 相对于 BDS 公共钟差的额外偏移（ISB） | 支持两种模式：**free**（白噪声，默认）或 **constrained**（标定先验约束） |
+| `param(20)` | ISB_BDS3 | BDS-3 相对于 BDS 公共钟差的额外偏移（ISB） | 支持三种模式：**free**（白噪声，默认）、**constrained**（标定先验约束）或 **fixed**（固定改正，不估计状态） |
 
 原有 `param(14)`–`param(16)` 的语义**变为 BDS 公共参数**：
 
@@ -35,12 +35,14 @@
 > **设计理由**：
 > 1. 让 param(14) 使用全部 BDS 卫星（10+颗）来估计公共钟差，
 >    而非仅用 BDS-2（智能手机通常仅 2-3 颗），显著改善参数可观测性。
-> 2. ISB 支持两种滤波模式：
+> 2. ISB 支持三种模式：
 >    - **free**（默认）：白噪声，复用 BDS 钟差滤波设置，每历元独立估计。
 >      需要 BDS-2 ≥ 4 颗才能几何可观测。
 >    - **constrained**：以标定值为先验的随机常数（Transition=1，Noise=0.001 m²/h），
 >      小初始方差（σ²_prior）约束 ISB 在标定值附近，避免几何秩亏导致的高度退化。
 >      适用于 BDS-2 不足的智能手机场景。
+>    - **fixed**：对 BDS-3 施加固定 ISB 改正值 `bds23_isb_fixed_m`，不引入 `param(20)` 状态，
+>      适用于短时段/弱几何场景（如 20 分钟手机数据）。
 > 3. DCB 不再分 BDS-2/BDS-3 单独估计（共享），减少参数数量。
 
 ---
@@ -112,9 +114,10 @@ ISB_BDS2/3 = ISB_BDS3 = param(20)
 | 设置路径 | 类型 | 默认值 | 作用 |
 |---|---|---|---|
 | `settings.BIASES.estimate_bds23_isb` | logical | `false` | 主开关：是否启用 BDS-2/3 ISB 分离估计 |
-| `settings.BIASES.bds23_isb_mode` | string | `'free'` | ISB 滤波模式：`'free'`（白噪声）或 `'constrained'`（标定先验约束） |
+| `settings.BIASES.bds23_isb_mode` | string | `'free'` | ISB 模式：`'free'`（白噪声）/ `'constrained'`（先验约束）/ `'fixed'`（固定改正） |
 | `settings.BIASES.bds23_isb_prior_m` | double | `0` | 标定 ISB 先验值 [m]（仅 constrained 模式使用） |
 | `settings.BIASES.bds23_isb_prior_sigma_m` | double | `3.0` | ISB 先验标准差 [m]（仅 constrained 模式使用） |
+| `settings.BIASES.bds23_isb_fixed_m` | double | `0` | 固定 ISB 改正值 [m]（仅 fixed 模式使用） |
 | `settings.PLOT.bds23_isb` | logical | `false` | 绘图开关：是否绘制 ISB 分析图 |
 
 ---
@@ -124,7 +127,7 @@ ISB_BDS2/3 = ISB_BDS3 = param(20)
 - **必须启用 BDS** — 若 `settings.INPUT.use_BDS = false`，自动禁用
 - **不支持 Decoupled Clock Model (DCM)** — 若电离层模型为 `'Estimate, decoupled clock'`，自动禁用
 - **适用于 ZD（Zero-Difference）模型** — 包括 IF-LC、uncombined、3-Frequency-IF-LC 等
-- **滤波参数复用** — BDS-3 ISB 的初始方差、过程噪声、动态模型均复用 BDS 钟差滤波设置（白噪声）
+- **滤波参数复用** — free/constrained 模式下，BDS-3 ISB 状态复用 BDS 钟差滤波设置；fixed 模式不新增状态
 - **⚠️ 需要充足的 BDS-2 卫星** — 见下方"已知限制"章节
 
 ---
@@ -149,12 +152,13 @@ GUI 中已集成两个 checkbox 控件，可直接在界面中启用：
 3. **启用 ISB 分离估计**
    - 切换到 **Adjustment / Filter** 面板
    - 勾选 **☑ BDS-2/3 ISB** 复选框（位于 Receiver Clock BeiDou 与 Receiver DCBs 之间）
-   - 勾选后，右侧出现 **模式下拉菜单**，可选择 `free` 或 `constrained`
+   - 勾选后，右侧出现 **模式下拉菜单**，可选择 `free`、`constrained` 或 `fixed`
 
-4. **选择 ISB 滤波模式**
+4. **选择 ISB 模式**
    - **free**（默认）：白噪声，每历元独立估计。需 BDS-2 ≥ 4 颗。
    - **constrained**：标定先验约束。选择后右侧出现 **Prior[m]** 和 **Sigma[m]** 编辑框，
      可直接输入标定值（也可通过 `calibrate_bds23_isb.m` 自动写入 `settings.mat` 后 Load）。
+   - **fixed**：固定改正。选择后右侧出现 **Fixed[m]** 编辑框，填入标定中位值。
 
 5. **启用 ISB 绘图**（可选）
    - 切换到 **Single Plot** 面板
@@ -169,16 +173,19 @@ GUI 中已集成两个 checkbox 控件，可直接在界面中启用：
 | 控件 Tag | 所在面板 | 功能 | 初始状态 |
 |----------|---------|------|----------|
 | `checkbox_bds23_isb` | Adjustment / Filter | 主开关：启用 BDS-2/3 ISB 分离估计 | Enable=on, Value=0 |
-| `popupmenu_bds23_isb_mode` | Adjustment / Filter | 模式选择：free / constrained | Enable=off（动态创建） |
+| `popupmenu_bds23_isb_mode` | Adjustment / Filter | 模式选择：free / constrained / fixed | Enable=off（动态创建） |
 | `edit_bds23_isb_prior` | Adjustment / Filter | ISB 先验值 [m]（constrained 模式） | Visible=off（动态创建） |
 | `edit_bds23_isb_sigma` | Adjustment / Filter | ISB 先验标准差 [m]（constrained 模式） | Visible=off（动态创建） |
+| `edit_bds23_isb_fixed` | Adjustment / Filter | 固定 ISB 改正值 [m]（fixed 模式） | Visible=off（动态创建） |
 | `checkbox_plot_bds23_isb` | Single Plot | 绘图开关：启用 ISB 分析图 | Enable=off, Value=0 |
 
 **联动逻辑**：
 - 勾选 checkbox → 下拉菜单启用、绘图 checkbox 可用
 - 取消勾选 → 下拉菜单禁用、先验字段隐藏、绘图 checkbox 置灰
 - 下拉选 constrained → 显示 Prior[m] 和 Sigma[m] 编辑框
+- 下拉选 fixed → 显示 Fixed[m] 编辑框
 - 下拉选 free → 隐藏 Prior/Sigma 编辑框
+- 下拉选 free/constrained 时隐藏 Fixed[m] 编辑框
 - 选 constrained 但 Prior=0 时弹出提示
 
 ### 方法二：批处理脚本中启用
@@ -262,6 +269,25 @@ save('settings.mat', 'settings');
 
 **切换回 free 模式**：在 GUI 下拉菜单中选 `free`，或命令行 `settings.BIASES.bds23_isb_mode = 'free';`
 
+### 方法五：使用固定改正模式（Fixed Mode，推荐用于短时段）
+
+当短时段数据（如 20 分钟）下 `constrained` 仍明显劣化，可使用固定改正避免新增状态自由度。
+
+**方式 A：GUI**
+1. 勾选 **☑ BDS-2/3 ISB**
+2. 下拉选择 **fixed**
+3. 在 **Fixed[m]** 输入标定中位值（可来自 `calibrate_bds23_isb.m` 输出）
+4. 点击 **RUN**
+
+**方式 B：命令行**
+```matlab
+load('settings.mat', 'settings');
+settings.BIASES.estimate_bds23_isb = true;
+settings.BIASES.bds23_isb_mode     = 'fixed';
+settings.BIASES.bds23_isb_fixed_m  = 6.3456;  % 示例值 [m]
+save('settings.mat', 'settings');
+```
+
 **约束模式滤波参数**：
 
 | 参数 | Free 模式 | Constrained 模式 |
@@ -274,6 +300,76 @@ save('settings.mat', 'settings');
 > **原理**：小初始方差 = "我对 ISB 有先验信息"，ISB 被约束在标定值附近，
 > 即使 BDS-2 仅 2-3 颗也不会与高度产生严重耦合。微小过程噪声允许 ISB
 > 缓慢漂移以适应温度变化等因素。
+
+### 方法六：使用 `calibrate_bds23_isb_fixed_grid.m` 自动扫固定值并推荐最优值
+
+该脚本用于对 `settings.BIASES.bds23_isb_fixed_m` 进行网格搜索，自动运行多次 PPP，
+比较每个 fixed 值对应的 H/N/E RMS 和目标函数 J，并输出推荐值。
+
+脚本位置：`CODE/OTHERS/calibrate_bds23_isb_fixed_grid.m`
+
+#### 6.1 交互方式（推荐）
+
+```matlab
+cd('D:\code\matlab\raPPPid\raPPPid\WORK');
+calibrate_bds23_isb_fixed_grid
+```
+
+交互流程：
+1. 先选择 `settings.mat`（可选 `WORK/settings.mat` 或历史结果目录内 `settings.mat`）
+2. 选择一个或多个 OBS 文件
+3. 设置参数（deviceName、PROC 基路径、fixedGrid、maxRMS 等）
+4. 自动开始 sweep 并输出推荐结果
+
+#### 6.2 非交互方式（批处理）
+
+```matlab
+report = calibrate_bds23_isb_fixed_grid( ...
+   'settingsFile', 'D:/.../settings.mat', ...
+   'obsFiles', {'D:/.../a.25o', 'D:/.../b.25o'}, ...
+   'deviceName', 'K181', ...
+   'fixedGrid', 0:0.05:1, ...
+   'skipEpochs', 0, ...
+   'maxRMS', [0.2 0.2 0.2], ...
+   'useParallel', true, ...
+   'interactive', false);
+```
+
+#### 6.3 关键参数说明
+
+| 参数 | 含义 | 常用值 |
+|---|---|---|
+| `fixedGrid` | 固定 ISB 搜索网格（m） | `0:0.05:1` |
+| `skipEpochs` | RMS 计算前丢弃历元数（全历元可设 0） | `0` 或 `300` |
+| `maxRMS` | 可行性阈值 `[H N E]`（m） | `[0.2 0.2 0.2]` 或 `[Inf Inf Inf]` |
+| `requireTrueReference` | 是否强制使用真实参考坐标 | `true` |
+| `procName` | 输出目录基路径，自动附加 `ISBFIXED_<fixed>` 后缀 | `GREC-K70/K181/ISB_FIXED_CAL` |
+| `useParallel` | 并行穷举开关（结果与串行一致，仅提速） | `true` |
+
+#### 6.4 输出结果
+
+脚本会在 `RESULTS/ISB_FIXED_CAL/<device>_<timestamp>/` 下生成：
+
+| 文件 | 内容 |
+|---|---|
+| `session_best.csv` | 每会话最优 fixed 结果 |
+| `grid_all.csv` | 全部网格点结果（含 `nUsed/nValid/ok/usedTrueReference/feasible`） |
+| `summary.txt` | 推荐值、MAD、P10/P90、约束提示 |
+| `report.mat` | 完整结构化结果 |
+| `sweep_*.png` | RMS/J 随 fixed 变化曲线 |
+
+#### 6.5 推荐值定义
+
+- 每个会话先在可行点中选最小 J（若无可行点则在有效点中选最小 J）
+- 全部会话的 `best_fixed_m` 取中位数得到 `Recommended ISB0`
+- `MAD`、`P10`、`P90` 用于衡量跨会话稳定性（单会话时仅具形式意义）
+
+#### 6.6 性能与注意事项
+
+- 网格越密、数据越长，耗时越大；可启用 `useParallel=true` 提升速度
+- 并行 worker 数决定并发数（例如 8 workers 同时评估 8 个 fixed 点）
+- 若 `best_fixed_m` 命中网格边界，脚本会提示扩展搜索范围
+- 若 `maxRMS` 约束过严，可能出现 `satisfyConstraints=0`（回退到有效点最小 J）
 
 ---
 
@@ -340,6 +436,7 @@ fprintf('ISB median: %.3f ns\n', median(ISB_BDS3(ISB_BDS3~=0), 'omitnan'));
 | 高精度后处理（BDS-2+BDS-3 均衡） | free | **推荐** | 分离后可提升定位精度 |
 | 智能手机 PPP（BDS-2 仅 2-3 颗） | free | **不推荐** | BDS-2 不足，ISB 不可观测，高度退化 ~1.5m |
 | 智能手机 PPP（BDS-2 仅 2-3 颗） | **constrained** | **推荐** | 标定先验约束解决几何秩亏问题 |
+| 智能手机 PPP（短时段 10–30 分钟） | **fixed** | **优先推荐** | 不新增 ISB 状态，通常比 constrained 更稳 |
 | 测量型接收机（单 BDS-3 信号） | — | 不需要 | 若只有 BDS-3 卫星，无需分离 |
 | 使用 Decoupled Clock Model | — | **不支持** | 当前实现仅适用于 ZD 模型 |
 
@@ -385,8 +482,8 @@ A_isBDS3 = [0 0 0 0 0 0 1 1 1 1 1 1]  (9 BDS-3 only)
 ### 建议
 
 - BDS-2 ≥ 4 颗时使用 **free** 模式
-- BDS-2 ≤ 3 颗时（智能手机）使用 **constrained** 模式（需先标定 ISB）
-- 启用 ISB 时 GUI 会弹出警告提示，包含两种模式的说明
+- BDS-2 ≤ 3 颗时（智能手机）优先 **fixed**，其次 **constrained**（需先标定 ISB）
+- 启用 ISB 时 GUI 会弹出警告提示，包含三种模式说明
 - 标定脚本：`calibrate_bds23_isb.m`（位于 `CODE/OTHERS/`）
 
 ---
@@ -395,11 +492,12 @@ A_isBDS3 = [0 0 0 0 0 0 1 1 1 1 1 1]  (9 BDS-3 only)
 
 1. **向后兼容**：旧的 `settings.mat` 文件可正常加载，缺失字段会自动补默认值（`false`/`'free'`/`0`/`3.0`）
 2. **开启后模糊度参数索引偏移**：浮点模糊度从 `param(20+)` 变为 `param(21+)`，这由 `Adjust.NO_PARAM` 动态控制，对用户透明
-3. **ISB 滤波模式**：
+3. **ISB 模式**：
    - **free**（默认）：白噪声，复用 BDS 钟差滤波设置。需要充足 BDS-2 卫星。
    - **constrained**：随机常数 + 标定先验。初始值 = `bds23_isb_prior_m`，初始方差 = `bds23_isb_prior_sigma_m²`，
      Transition=1，Noise=0.001 m²/h。适用于 BDS-2 不足的场景。
-4. **BDS-2 卫星不足时的建议**：使用 constrained 模式（见第 8 节“方法四”），或禁用 ISB（见第 12 节）
+   - **fixed**：固定改正，不估计 `param(20)` 状态。改正值 = `bds23_isb_fixed_m`，适用于短弧段弱几何。
+4. **BDS-2 卫星不足时的建议**：优先 fixed（见第 8 节“方法五”），其次 constrained（见“方法四”），或禁用 ISB（见第 12 节）
 5. **ISB 对高度的影响**：BDS 公共钟差列与 ISB 列高度相关（ρ≈0.85），
    constrained 模式通过先验约束打破这种相关性，避免高度退化
 
@@ -415,11 +513,11 @@ A_isBDS3 = [0 0 0 0 0 0 1 1 1 1 1 1]  (9 BDS-3 only)
 
 ### GUI 控件
 - `CODE/VISUAL/GUI/GUI_PPP.fig` — 新增 `checkbox_bds23_isb`（Adjustment/Filter 面板）和 `checkbox_plot_bds23_isb`（Single Plot 面板）
-- `CODE/VISUAL/GUI/GUI_PPP.m` — 新增 `checkbox_bds23_isb_Callback`（含联动绘图 checkbox 逻辑）和 `checkbox_plot_bds23_isb_Callback`
+- `CODE/VISUAL/GUI/GUI_PPP.m` — 新增 `checkbox_bds23_isb_Callback`（含 free/constrained/fixed 联动逻辑）和 `checkbox_plot_bds23_isb_Callback`
 
 ### 常量与设置链
 - `CODE/COMMON/DEF.m` — 新增 `NO_PARAM_ZD_BDS23=20`、`BDS2/3_PRN_MIN/MAX` 常量
-- `CODE/READ/getSettingsFromGUI.m` — 新增 `settings.BIASES.estimate_bds23_isb`、`settings.PLOT.bds23_isb`
+- `CODE/READ/getSettingsFromGUI.m` — 新增 `settings.BIASES.estimate_bds23_isb`、`settings.BIASES.bds23_isb_fixed_m`、`settings.PLOT.bds23_isb`
 - `CODE/VISUAL/GUI/setSettingsToGUI.m` — 回填 `checkbox_bds23_isb` 和 `checkbox_plot_bds23_isb`
 - `CODE/READ/checkProcessingSettings.m` — 向后兼容默认值 + DCM 互斥校验
 - `CODE/PROCESSING/settings2txt.m` — 输出 ISB 启用状态
@@ -433,8 +531,8 @@ A_isBDS3 = [0 0 0 0 0 0 1 1 1 1 1 1]  (9 BDS-3 only)
 - `CODE/PROCESSING/Designmatrix_ZD.m` — BDS→BDS-2/BDS-3 列分裂
 - `CODE/PROCESSING/Designmatrix_code_ZD.m` — 同上
 - `CODE/PROCESSING/Designmatrix_code_doppler_ZD.m` — 同上
-- `CODE/PROCESSING/modelErrorSources.m` — dt_rx 按 BDS-2/BDS-3 分别计算
-- `CODE/PROCESSING/getReceiverClockBiases.m` — 钟差和 DCB 按 BDS-2/BDS-3 分别赋值
+- `CODE/PROCESSING/modelErrorSources.m` — free/constrained 使用状态估计，fixed 使用固定改正
+- `CODE/PROCESSING/getReceiverClockBiases.m` — 钟差按 free/constrained/fixed 分支赋值
 
 ### 可视化
 - `CODE/VISUAL/vis_plotReceiverClock.m` — BDS-2/BDS-3 分开子图

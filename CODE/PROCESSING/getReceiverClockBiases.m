@@ -35,9 +35,23 @@ if ~DecoupledClockModel
     model.dt_rx_clock(Epoch.glo,  :) = param( 5) + param( 8);
     model.dt_rx_clock(Epoch.gal,  :) = param( 5) + param(11);
     % BDS-2/BDS-3 ISB support
-    if isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb
+    bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
+    bds23_isb_mode = 'free';
+    if bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode')
+        bds23_isb_mode = settings.BIASES.bds23_isb_mode;
+    end
+    bds23_isb_fixed_on = bds23_isb_on && strcmp(bds23_isb_mode, 'fixed');
+    bds23_isb_state_on = bds23_isb_on && ~bds23_isb_fixed_on;
+    if bds23_isb_state_on
         model.dt_rx_clock(Epoch.bds2, :) = param( 5) + param(14);
         model.dt_rx_clock(Epoch.bds3, :) = param( 5) + param(14) + param(20);
+    elseif bds23_isb_fixed_on
+        fixed_m = 0;
+        if isfield(settings.BIASES, 'bds23_isb_fixed_m') && isfinite(settings.BIASES.bds23_isb_fixed_m)
+            fixed_m = settings.BIASES.bds23_isb_fixed_m;
+        end
+        model.dt_rx_clock(Epoch.bds2, :) = param( 5) + param(14);
+        model.dt_rx_clock(Epoch.bds3, :) = param( 5) + param(14) + fixed_m;
     else
         model.dt_rx_clock(Epoch.bds,  :) = param( 5) + param(14);
     end
@@ -66,7 +80,6 @@ end
 
 if settings.BIASES.estimate_rec_dcbs && ~DecoupledClockModel
     % receiver DCB_12 and DCB_13 are estimated
-    bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
     if num_freq > 1
         model.dcbs(Epoch.gps,  2) = param( 6);
         model.dcbs(Epoch.glo,  2) = param( 9);

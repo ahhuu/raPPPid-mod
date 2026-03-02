@@ -42,6 +42,12 @@ isQZSS = settings.INPUT.use_QZSS;
 
 % BDS-2/BDS-3 ISB support
 bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
+bds23_isb_mode = 'free';
+if bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode')
+    bds23_isb_mode = settings.BIASES.bds23_isb_mode;
+end
+bds23_isb_fixed_on = bds23_isb_on && strcmp(bds23_isb_mode, 'fixed');
+bds23_isb_state_on = bds23_isb_on && ~bds23_isb_fixed_on;
 
 m2ns = 1e9 / Const.C;       % convert from [m] to [ns]
 
@@ -110,9 +116,17 @@ if isGAL
 end
 % plot Beidou
 if isBDS
-    if bds23_isb_on
+    if bds23_isb_state_on
         i = plot_clk(rec_clk_BDS, i, n, m, resets_h, hours, strXAxis, ['BDS-2 ' strYAxis], DEF.COLOR_C);
         rec_clk_BDS3 = (param(14,:) + param(20,:)) * m2ns;  % BDS-3 = common + ISB
+        i = plot_clk(rec_clk_BDS3, i, n, m, resets_h, hours, strXAxis, ['BDS-3 ' strYAxis], [0.5 0 0.5]);
+    elseif bds23_isb_fixed_on
+        i = plot_clk(rec_clk_BDS, i, n, m, resets_h, hours, strXAxis, ['BDS-2 ' strYAxis], DEF.COLOR_C);
+        fixed_m = 0;
+        if isfield(settings.BIASES, 'bds23_isb_fixed_m') && isfinite(settings.BIASES.bds23_isb_fixed_m)
+            fixed_m = settings.BIASES.bds23_isb_fixed_m;
+        end
+        rec_clk_BDS3 = (param(14,:) + fixed_m) * m2ns;
         i = plot_clk(rec_clk_BDS3, i, n, m, resets_h, hours, strXAxis, ['BDS-3 ' strYAxis], [0.5 0 0.5]);
     else
         i = plot_clk(rec_clk_BDS, i, n, m, resets_h, hours, strXAxis, ['BDS ' strYAxis], DEF.COLOR_C);
