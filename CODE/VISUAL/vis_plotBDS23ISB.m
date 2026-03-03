@@ -31,32 +31,43 @@ bds23_isb_mode = 'free';
 if isfield(settings.BIASES, 'bds23_isb_mode')
     bds23_isb_mode = settings.BIASES.bds23_isb_mode;
 end
+bds23_isb_split_on = strcmp(bds23_isb_mode, 'split');
 bds23_isb_fixed_on = strcmp(bds23_isb_mode, 'fixed');
 bds23_isb_state_on = ~bds23_isb_fixed_on;
 
 % Extract BDS-2 and BDS-3 receiver clock offsets [ns]
-% Reparameterized model: param(14) = common BDS clock offset from GPS
-%                        param(20) = ISB (BDS-3 additional offset)
-dt_BDS_common = param(14,:) * m2ns;    % BDS common clock offset from GPS [ns]
+% free/constrained: param(14)=dt_BDS_common, param(20)=ISB_BDS3
+% split:            param(14)=dt_BDS2,      param(20)=dt_BDS3
+dt_BDS_common = param(14,:) * m2ns;
 if bds23_isb_state_on && size(param,1) >= 20
-    dt_ISB = param(20,:) * m2ns;           % BDS-3 ISB offset [ns]
+    if bds23_isb_split_on
+        dt_BDS2 = param(14,:) * m2ns;
+        dt_BDS3 = param(20,:) * m2ns;
+        dt_ISB = dt_BDS3 - dt_BDS2;         % split: ISB = dt_BDS3 - dt_BDS2
+    else
+        dt_ISB = param(20,:) * m2ns;        % free/constrained
+        dt_BDS2 = dt_BDS_common;
+        dt_BDS3 = dt_BDS_common + dt_ISB;
+    end
 else
     fixed_m = 0;
     if isfield(settings.BIASES, 'bds23_isb_fixed_m') && isfinite(settings.BIASES.bds23_isb_fixed_m)
         fixed_m = settings.BIASES.bds23_isb_fixed_m;
     end
     dt_ISB = fixed_m * m2ns * ones(size(dt_BDS_common));
+    dt_BDS2 = dt_BDS_common;
+    dt_BDS3 = dt_BDS_common + dt_ISB;
 end
-dt_BDS2 = dt_BDS_common;              % BDS-2 clock = common BDS clock
-dt_BDS3 = dt_BDS_common + dt_ISB;     % BDS-3 clock = common + ISB
 
 % valid epochs
-if bds23_isb_state_on
-    valid = (dt_BDS_common ~= 0) & (dt_ISB ~= 0);
+if bds23_isb_split_on
+    valid = (dt_BDS2 ~= 0) & (dt_BDS3 ~= 0) & isfinite(dt_ISB);
+elseif bds23_isb_state_on
+    valid = (dt_BDS_common ~= 0) & (dt_ISB ~= 0) & isfinite(dt_ISB);
 else
     valid = (dt_BDS_common ~= 0);
 end
-ISB = dt_ISB;                          % ISB = param(20) directly [ns]
+ISB = dt_ISB;
 
 % Create figure
 fig_isb = figure('Name','BDS-2/BDS-3 ISB Analysis', 'NumberTitle','off');

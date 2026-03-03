@@ -155,6 +155,7 @@ for i_sat = 1:num_sat
     if bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode')
         bds23_isb_mode = settings.BIASES.bds23_isb_mode;
     end
+    bds23_isb_split_on = bds23_isb_on && strcmp(bds23_isb_mode, 'split');
     bds23_isb_fixed_on = bds23_isb_on && strcmp(bds23_isb_mode, 'fixed');
     bds23_isb_state_on = bds23_isb_on && ~bds23_isb_fixed_on;
     if bds23_isb_on && isfield(Epoch, 'bds3')
@@ -162,17 +163,27 @@ for i_sat = 1:num_sat
     else
         isBDS3_i = false;
     end
+    if bds23_isb_on && isfield(Epoch, 'bds2')
+        isBDS2_i = Epoch.bds2(i_sat);
+    else
+        isBDS2_i = false;
+    end
     isb_bds3_m = 0;
-    if bds23_isb_state_on
+    if bds23_isb_split_on
+        dt_rx = (param(5) + isGLO*param(8) + isGAL*param(11) + isBDS2_i*param(14) + isBDS3_i*param(20) + isQZSS*param(17))/Const.C;
+    elseif bds23_isb_state_on
         isb_bds3_m = isBDS3_i * param(20);
+        dt_rx = (param(5) + isGLO*param(8) + isGAL*param(11) + isBDS*param(14) + isQZSS*param(17) + isb_bds3_m)/Const.C;
     elseif bds23_isb_fixed_on
         fixed_m = 0;
         if isfield(settings.BIASES, 'bds23_isb_fixed_m') && isfinite(settings.BIASES.bds23_isb_fixed_m)
             fixed_m = settings.BIASES.bds23_isb_fixed_m;
         end
         isb_bds3_m = isBDS3_i * fixed_m;
+        dt_rx = (param(5) + isGLO*param(8) + isGAL*param(11) + isBDS*param(14) + isQZSS*param(17) + isb_bds3_m)/Const.C;
+    else
+        dt_rx = (param(5) + isGLO*param(8) + isGAL*param(11) + isBDS*param(14) + isQZSS*param(17))/Const.C;
     end
-    dt_rx = (param(5) + isGLO*param(8) + isGAL*param(11) + isBDS*param(14) + isQZSS*param(17) + isb_bds3_m)/Const.C;
     
     % check if satellite has valid code observations
     if all(isnan(Epoch.code(i_sat,:)))

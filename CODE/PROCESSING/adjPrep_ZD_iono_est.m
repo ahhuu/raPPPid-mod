@@ -97,8 +97,11 @@ if ~Adjust.float
     end
     % BDS-3 ISB: additional parameters at indices 20-22
     bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
-    bds23_isb_state_on = bds23_isb_on && (~isfield(settings.BIASES, 'bds23_isb_mode') || ...
-        ~strcmp(settings.BIASES.bds23_isb_mode, 'fixed'));
+    bds23_isb_mode = 'free';
+    if bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode')
+        bds23_isb_mode = settings.BIASES.bds23_isb_mode;
+    end
+    bds23_isb_state_on = bds23_isb_on && ismember(bds23_isb_mode, {'free','split','constrained'});
     bds23_isb_constrained = bds23_isb_state_on && isfield(settings.BIASES, 'bds23_isb_mode') && ...
         strcmp(settings.BIASES.bds23_isb_mode, 'constrained');
     if bds23_isb_state_on && BDS_ON

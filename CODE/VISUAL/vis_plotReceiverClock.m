@@ -47,6 +47,7 @@ if bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode')
     bds23_isb_mode = settings.BIASES.bds23_isb_mode;
 end
 bds23_isb_fixed_on = bds23_isb_on && strcmp(bds23_isb_mode, 'fixed');
+bds23_isb_split_on = bds23_isb_on && strcmp(bds23_isb_mode, 'split');
 bds23_isb_state_on = bds23_isb_on && ~bds23_isb_fixed_on;
 
 m2ns = 1e9 / Const.C;       % convert from [m] to [ns]
@@ -116,7 +117,11 @@ if isGAL
 end
 % plot Beidou
 if isBDS
-    if bds23_isb_state_on
+    if bds23_isb_split_on
+        i = plot_clk(rec_clk_BDS, i, n, m, resets_h, hours, strXAxis, ['BDS-2 ' strYAxis], DEF.COLOR_C);
+        rec_clk_BDS3 = param(20,:) * m2ns;  % BDS-3 independent clock in split mode
+        i = plot_clk(rec_clk_BDS3, i, n, m, resets_h, hours, strXAxis, ['BDS-3 ' strYAxis], [0.5 0 0.5]);
+    elseif bds23_isb_state_on
         i = plot_clk(rec_clk_BDS, i, n, m, resets_h, hours, strXAxis, ['BDS-2 ' strYAxis], DEF.COLOR_C);
         rec_clk_BDS3 = (param(14,:) + param(20,:)) * m2ns;  % BDS-3 = common + ISB
         i = plot_clk(rec_clk_BDS3, i, n, m, resets_h, hours, strXAxis, ['BDS-3 ' strYAxis], [0.5 0 0.5]);

@@ -35,10 +35,17 @@ isQZSS = repmat(Epoch.qzss, num_freq, 1);
 
 % BDS-2/BDS-3 ISB support
 bds23_isb_on = isfield(settings.BIASES, 'estimate_bds23_isb') && settings.BIASES.estimate_bds23_isb;
-bds23_isb_state_on = bds23_isb_on && (~isfield(settings.BIASES, 'bds23_isb_mode') || ...
-    ~strcmp(settings.BIASES.bds23_isb_mode, 'fixed'));
+bds23_isb_mode = 'free';
+if bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode')
+    bds23_isb_mode = settings.BIASES.bds23_isb_mode;
+end
+bds23_isb_split_on = bds23_isb_on && strcmp(bds23_isb_mode, 'split');
+bds23_isb_state_on = bds23_isb_on && ismember(bds23_isb_mode, {'free','split','constrained'});
 if bds23_isb_state_on
     isBDS3 = repmat(Epoch.bds3, num_freq, 1);
+end
+if bds23_isb_split_on
+    isBDS2 = repmat(Epoch.bds2, num_freq, 1);
 end
 
 NO_PARAM = Adjust.NO_PARAM;  % dynamic: 19 or 22
@@ -77,7 +84,10 @@ dR_time_dcb(:, 4) = isGLO;       % GLONASS
 dR_time_dcb(:, 7) = isGAL;       % Galileo
 dR_time_dcb(:,10) = isBDS;       % BeiDou common clock (all BDS sats)
 dR_time_dcb(:,13) = isQZSS;      % QZSS
-if bds23_isb_state_on
+if bds23_isb_split_on
+    dR_time_dcb(:,10) = isBDS2;      % BeiDou-2 clock (split mode)
+    dR_time_dcb(:,16) = isBDS3;      % BeiDou-3 clock (split mode)
+elseif bds23_isb_state_on
     dR_time_dcb(:,16) = isBDS3;      % BeiDou-3 (param 20)
 end
 % Differential Code Biases

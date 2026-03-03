@@ -2,8 +2,8 @@ function calibrate_bds23_isb(varargin)
 % calibrate_bds23_isb  Extract calibrated BDS-2/BDS-3 ISB from processing results
 %
 % This script extracts the ISB value from one or more previous raPPPid
-% processing results (which used 'free' ISB estimation) and writes the
-% calibrated value into settings.mat for subsequent 'constrained' mode runs.
+% processing results (which used ISB estimation) and writes the
+% calibrated value into settings.mat for subsequent constrained/fixed runs.
 %
 % USAGE:
 %   calibrate_bds23_isb                  % interactive: select result folder(s) via dialog
@@ -13,10 +13,16 @@ function calibrate_bds23_isb(varargin)
 % WORKFLOW:
 %   1. Run raPPPid with ISB enabled in 'free' mode (default) on known-position data
 %   2. Run this script, pointing to the result folder(s)
-%   3. The script extracts the converged ISB median, prints statistics
+%   3. The script extracts the ISB median, prints statistics
 %   4. Optionally writes the calibrated ISB into WORK/settings.mat
 %
-% The calibrated ISB can then be used in 'constrained' mode or 'fixed' mode:
+% ISB mode options in GUI/settings:
+%   settings.BIASES.bds23_isb_mode          = 'split';       % independent BDS2/BDS3 clocks, no prior/fixed value needed
+%   settings.BIASES.bds23_isb_mode          = 'free';        % estimate ISB state as white noise
+%   settings.BIASES.bds23_isb_mode          = 'constrained'; % estimate with prior
+%   settings.BIASES.bds23_isb_mode          = 'fixed';       % apply constant correction
+%
+% The calibrated ISB from this script is mainly used for 'constrained' or 'fixed' mode:
 %   settings.BIASES.bds23_isb_mode          = 'constrained';
 %   settings.BIASES.bds23_isb_prior_m       = <calibrated value>;
 %   settings.BIASES.bds23_isb_prior_sigma_m = 3.0;  % adjust as needed
@@ -53,7 +59,7 @@ end
 %% Extract ISB from each result
 all_isb_m = [];   % collected ISB values in meters
 all_isb_ns = [];  % collected ISB values in nanoseconds
-skip_epochs = 300; % skip first N epochs for convergence
+skip_epochs = 0; % skip first N valid epochs (default: no skip)
 
 fprintf('\n=== BDS-2/BDS-3 ISB Calibration ===\n\n');
 
@@ -74,14 +80,30 @@ for i = 1:numel(result_dirs)
     end
     storeData = loaded.storeData;
     
-    % Check if ISB was estimated (param column 20 exists and is non-zero)
+    % Determine ISB mode from result settings (fallback: free)
+    isb_mode = 'free';
+    settings_file = fullfile(result_dir, 'settings.mat');
+    if exist(settings_file, 'file')
+        s = load(settings_file, 'settings');
+        if isfield(s, 'settings') && isfield(s.settings, 'BIASES') && isfield(s.settings.BIASES, 'bds23_isb_mode')
+            isb_mode = s.settings.BIASES.bds23_isb_mode;
+        end
+    end
+
+    % Extract ISB according to mode
     if size(storeData.param, 2) < 20
-        fprintf('WARNING: Only %d params in %s (need 20 for ISB), skipping.\n', ...
+        fprintf('WARNING: Only %d params in %s (need >=20), skipping.\n', ...
             size(storeData.param, 2), result_dir);
         continue;
     end
-    
-    isb_ts = storeData.param(:, 20);  % ISB time series [m]
+    if strcmp(isb_mode, 'split')
+        isb_ts = storeData.param(:,20) - storeData.param(:,14);  % dt_BDS3 - dt_BDS2 [m]
+    elseif strcmp(isb_mode, 'fixed')
+        fprintf('WARNING: Result %s is fixed mode; skipping for ISB calibration.\n', result_dir);
+        continue;
+    else
+        isb_ts = storeData.param(:,20);  % free/constrained: ISB state [m]
+    end
     
     % Remove zero epochs (not processed or ISB disabled)
     valid = isb_ts ~= 0 & ~isnan(isb_ts);
@@ -102,6 +124,7 @@ for i = 1:numel(result_dirs)
     isb_std_m    = std(isb_converged, 'omitnan');
     
     fprintf('Result: %s\n', result_dir);
+    fprintf('  ISB mode:     %s\n', isb_mode);
     fprintf('  Valid epochs: %d (used %d after skip %d)\n', n_valid, numel(isb_converged), skip_epochs);
     fprintf('  ISB median:   %+.4f m  (%+.2f ns)\n', isb_median_m, isb_median_m * m2ns);
     fprintf('  ISB mean:     %+.4f m  (%+.2f ns)\n', isb_mean_m, isb_mean_m * m2ns);
@@ -140,10 +163,11 @@ fprintf('  Prior[m] = %.4f   (%+.2f ns)\n', recommended_prior_m, recommended_pri
 fprintf('  Sigma[m] = %.2f\n\n', recommended_sigma_m);
 fprintf('  Fixed[m] = %.4f   (%+.2f ns)\n\n', recommended_prior_m, recommended_prior_m * m2ns);
 fprintf('How to use:\n');
-fprintf('  1. In GUI: check BDS-2/3 ISB, select "constrained" in dropdown\n');
-fprintf('  2. Enter the above Prior[m] and Sigma[m] values\n');
-fprintf('  3. Or select "fixed" and enter Fixed[m] = median value\n');
-fprintf('  4. Click RUN\n\n');
+fprintf('  1. In GUI: check BDS-2/3 ISB and select mode in dropdown\n');
+fprintf('  2. For "constrained": enter Prior[m] and Sigma[m]\n');
+fprintf('  3. For "fixed": enter Fixed[m] = median value\n');
+fprintf('  4. For "split": no prior/fixed input is required\n');
+fprintf('  5. Click RUN\n\n');
 
 %% Plot ISB time series
 figure('Name', 'BDS-2/BDS-3 ISB Calibration', 'NumberTitle', 'off');

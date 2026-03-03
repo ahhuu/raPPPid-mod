@@ -106,9 +106,9 @@ if ~isfield(settings.BIASES, 'bds23_isb_fixed_m')
 end
 % Validate ISB mode string
 if settings.BIASES.estimate_bds23_isb
-    if ~ismember(settings.BIASES.bds23_isb_mode, {'free', 'constrained', 'fixed'})
+    if ~ismember(settings.BIASES.bds23_isb_mode, {'free', 'split', 'constrained', 'fixed'})
         if ~prebatch_check
-            errordlg('Invalid bds23_isb_mode. Must be ''free'', ''constrained'' or ''fixed''.', windowname);
+            errordlg('Invalid bds23_isb_mode. Must be ''free'', ''split'', ''constrained'' or ''fixed''.', windowname);
         end
         settings.BIASES.bds23_isb_mode = 'free';
     end

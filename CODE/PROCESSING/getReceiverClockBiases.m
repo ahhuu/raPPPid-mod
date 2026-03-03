@@ -40,9 +40,13 @@ if ~DecoupledClockModel
     if bds23_isb_on && isfield(settings.BIASES, 'bds23_isb_mode')
         bds23_isb_mode = settings.BIASES.bds23_isb_mode;
     end
+    bds23_isb_split_on = bds23_isb_on && strcmp(bds23_isb_mode, 'split');
     bds23_isb_fixed_on = bds23_isb_on && strcmp(bds23_isb_mode, 'fixed');
     bds23_isb_state_on = bds23_isb_on && ~bds23_isb_fixed_on;
-    if bds23_isb_state_on
+    if bds23_isb_split_on
+        model.dt_rx_clock(Epoch.bds2, :) = param( 5) + param(14);
+        model.dt_rx_clock(Epoch.bds3, :) = param( 5) + param(20);
+    elseif bds23_isb_state_on
         model.dt_rx_clock(Epoch.bds2, :) = param( 5) + param(14);
         model.dt_rx_clock(Epoch.bds3, :) = param( 5) + param(14) + param(20);
     elseif bds23_isb_fixed_on
