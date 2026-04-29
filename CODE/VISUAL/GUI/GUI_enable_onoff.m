@@ -522,6 +522,65 @@ if strcmpi(handles.uipanel_otherCorrections.Visible, 'on')
     handles.text_cs_td_degree.Enable = onoff;
     handles.edit_cs_td_degree.Enable = onoff;
     handles.checkbox_LLI.Enable = onoff;
+    % HMW controls
+    if isfield(handles, 'checkbox_CycleSlip_HMW')
+        handles.checkbox_CycleSlip_HMW.Enable = onoff;
+        hmw_on = strcmpi(onoff, 'On') && handles.checkbox_CycleSlip_HMW.Value;
+        
+        if isfield(handles, 'edit_CycleSlip_HMW_factor')
+            handles.edit_CycleSlip_HMW_factor.Enable = char(matlab.lang.OnOffSwitchState(hmw_on));
+        end
+        if isfield(handles, 'edit_CycleSlip_HMW_threshold')
+            handles.edit_CycleSlip_HMW_threshold.Enable = char(matlab.lang.OnOffSwitchState(hmw_on));
+        end
+    end
+
+    % MW+GF controls
+    if isfield(handles, 'checkbox_CycleSlip_MWGF_enable')
+        handles.checkbox_CycleSlip_MWGF_enable.Enable = onoff;
+        mwgf_on = strcmpi(onoff, 'On') && handles.checkbox_CycleSlip_MWGF_enable.Value;
+        
+        if isfield(handles, 'popupmenu_CycleSlip_MWGF_logic')
+            handles.popupmenu_CycleSlip_MWGF_logic.Enable = char(matlab.lang.OnOffSwitchState(mwgf_on));
+        end
+    end
+
+    % TDCP Residuals controls
+    if isfield(handles, 'checkbox_cs_tdcp')
+        handles.checkbox_cs_tdcp.Enable = onoff;
+        tdcp_on = strcmpi(onoff, 'On') && handles.checkbox_cs_tdcp.Value;
+        
+        if isfield(handles, 'edit_cs_tdcp_threshold')
+            handles.edit_cs_tdcp_threshold.Enable = char(matlab.lang.OnOffSwitchState(tdcp_on));
+        end
+        if isfield(handles, 'edit_cs_tdcp_sigma0')
+            handles.edit_cs_tdcp_sigma0.Enable = char(matlab.lang.OnOffSwitchState(tdcp_on));
+        end
+    end
+
+    % Additional consistency for dynamic HMW/MWGF controls
+    if isfield(handles, 'checkbox_CycleSlip_HMW')
+        % HMW requires at least 2 processed frequencies
+        vals = [handles.popupmenu_gps_1.Value, handles.popupmenu_gps_2.Value, handles.popupmenu_gps_3.Value, ...
+                handles.popupmenu_glo_1.Value, handles.popupmenu_glo_2.Value, handles.popupmenu_glo_3.Value, ...
+                handles.popupmenu_gal_1.Value, handles.popupmenu_gal_2.Value, handles.popupmenu_gal_3.Value, ...
+                handles.popupmenu_bds_1.Value, handles.popupmenu_bds_2.Value, handles.popupmenu_bds_3.Value, ...
+                handles.popupmenu_qzss_1.Value, handles.popupmenu_qzss_2.Value, handles.popupmenu_qzss_3.Value];
+        has_multifrq = any(vals == 2) || any(vals == 3);
+        if strcmpi(onoff, 'On') && has_multifrq
+            handles.checkbox_CycleSlip_HMW.Enable = 'On';
+        else
+            handles.checkbox_CycleSlip_HMW.Enable = 'Off';
+            handles.checkbox_CycleSlip_HMW.Value = 0;
+        end
+    end
+    if isfield(handles, 'popupmenu_CycleSlip_MWGF_logic') && isfield(handles, 'checkbox_CycleSlip_MWGF_enable')
+        if strcmpi(onoff, 'On') && handles.checkbox_CycleSlip_MWGF_enable.Value
+            handles.popupmenu_CycleSlip_MWGF_logic.Enable = 'On';
+        else
+            handles.popupmenu_CycleSlip_MWGF_logic.Enable = 'Off';
+        end
+    end
     
     % ||| implement at some point
     

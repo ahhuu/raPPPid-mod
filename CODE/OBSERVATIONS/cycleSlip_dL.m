@@ -21,6 +21,7 @@ function Epoch = cycleSlip_dL(settings, Epoch, use_column)
 %% Preparations
 thresh = settings.OTHER.CS.DF_threshold;
 num_freq = settings.INPUT.proc_freqs;
+Epoch.cs_found_GF = false(numel(Epoch.sats), num_freq);
 
 % get columns of observations for GPS
 l1_gps = use_column{1, 1};      % column of L1-observations in observation-matrix (Epoch.obs)
@@ -174,6 +175,9 @@ elseif num_freq == 3
     % build matrix
     new_cs = [cs_found_L1', cs_found_L2', cs_found_L3'];
 end
+
+% method-specific output
+Epoch.cs_found_GF = new_cs;
 
 % --- check for found cycle-slips ---
 if any(any(new_cs))

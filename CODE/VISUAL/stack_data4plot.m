@@ -8,7 +8,7 @@ function [multiSats, multiData, multiObs, multiSetts] = stack_data4plot(paths, P
 %   PLOT        struct, containing booleans which plots are enabled
 % OUTPUT:
 %   satellites
-%	multiData   struct, stacked storeData´s from the files from paths
+%	multiData   struct, stacked storeDataï¿½s from the files from paths
 %   obs
 %   settings
 %
@@ -165,9 +165,16 @@ for i = 1:no_files
     multiSetts.OTHER.CS.l1c1 = multiSetts.OTHER.CS.l1c1 && settings.OTHER.CS.l1c1;
     multiSetts.OTHER.CS.DF = multiSetts.OTHER.CS.DF && settings.OTHER.CS.DF;
     multiSetts.OTHER.CS.Doppler = multiSetts.OTHER.CS.Doppler && settings.OTHER.CS.Doppler;
-    try
+    if ~isfield(multiSetts.OTHER.CS, 'HMW'); multiSetts.OTHER.CS.HMW = false; end
+    if ~isfield(multiSetts.OTHER.CS, 'MWGF_enable'); multiSetts.OTHER.CS.MWGF_enable = false; end
+    if ~isfield(settings.OTHER.CS, 'HMW'); settings.OTHER.CS.HMW = false; end
+    if ~isfield(settings.OTHER.CS, 'MWGF_enable'); settings.OTHER.CS.MWGF_enable = false; end
+    if ~isfield(settings.OTHER.CS, 'MWGF_logic'); settings.OTHER.CS.MWGF_logic = 'AND'; end
+    multiSetts.OTHER.CS.HMW = multiSetts.OTHER.CS.HMW && settings.OTHER.CS.HMW;
+    multiSetts.OTHER.CS.MWGF_enable = multiSetts.OTHER.CS.MWGF_enable && settings.OTHER.CS.MWGF_enable;
+    if ~isfield(multiSetts.OTHER.CS, 'TimeDifference'); multiSetts.OTHER.CS.TimeDifference = false; end
+    if ~isfield(settings.OTHER.CS, 'TimeDifference'); settings.OTHER.CS.TimeDifference = false; end
     multiSetts.OTHER.CS.TimeDifference = multiSetts.OTHER.CS.TimeDifference && settings.OTHER.CS.TimeDifference;
-    end
     % other variables
     multiSetts = checkString(multiSetts, settings, 'PROC', 'method');
     multiSetts = checkString(multiSetts, settings, 'IONO', 'model');
@@ -181,6 +188,9 @@ for i = 1:no_files
     multiSetts = checkValue3(multiSetts, settings, 'OTHER', 'CS', 'l1c1_threshold');
     multiSetts = checkValue3(multiSetts, settings, 'OTHER', 'CS', 'DF_threshold');
     multiSetts = checkValue3(multiSetts, settings, 'OTHER', 'CS', 'D_threshold');
+    multiSetts = checkValue3(multiSetts, settings, 'OTHER', 'CS', 'HMW_factor');
+    multiSetts = checkValue3(multiSetts, settings, 'OTHER', 'CS', 'HMW_threshold');
+    multiSetts = checkString3(multiSetts, settings, 'OTHER', 'CS', 'MWGF_logic');
     
     % increase number of stacked epochs
     eps_stacked = eps_stacked + settings.PROC.timeFrame(2);

@@ -367,6 +367,36 @@ if settings.PLOT.cs && strcmpi(settings.PROC.method,'Code + Phase')
     else
         fprintf('Cycle-Slip-Detection with time difference disabled.          \n')
     end
+    % HMW
+    if isfield(settings.OTHER.CS, 'HMW') && settings.OTHER.CS.HMW
+        if isGPS; vis_cs_HMW(storeData, 'G', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor); end
+        if isGLO; vis_cs_HMW(storeData, 'R', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor); end
+        if isGAL; vis_cs_HMW(storeData, 'E', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor); end
+        if isBDS; vis_cs_HMW(storeData, 'C', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor); end
+        if isQZSS;vis_cs_HMW(storeData, 'J', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor); end
+    else
+        fprintf('Cycle-Slip-Detection with HMW disabled.          \n')
+    end
+    % MWGF Combined
+    if isfield(settings.OTHER.CS, 'MWGF_enable') && settings.OTHER.CS.MWGF_enable
+        if isGPS; vis_cs_MWGF(storeData, 'G', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor, settings.OTHER.CS.DF_threshold, satellites.elev); end
+        if isGLO; vis_cs_MWGF(storeData, 'R', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor, settings.OTHER.CS.DF_threshold, satellites.elev); end
+        if isGAL; vis_cs_MWGF(storeData, 'E', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor, settings.OTHER.CS.DF_threshold, satellites.elev); end
+        if isBDS; vis_cs_MWGF(storeData, 'C', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor, settings.OTHER.CS.DF_threshold, satellites.elev); end
+        if isQZSS;vis_cs_MWGF(storeData, 'J', settings.OTHER.CS.HMW_threshold, settings.OTHER.CS.HMW_factor, settings.OTHER.CS.DF_threshold, satellites.elev); end
+    end
+    % TDCP Residuals
+    if isfield(settings.OTHER.CS, 'cs_tdcp') && settings.OTHER.CS.cs_tdcp
+        if isGPS; vis_cs_TDCP(storeData, 'G', settings.OTHER.CS.TDCP_threshold, settings.OTHER.CS.TDCP_sigma0); end
+        if isGLO; vis_cs_TDCP(storeData, 'R', settings.OTHER.CS.TDCP_threshold, settings.OTHER.CS.TDCP_sigma0); end
+        if isGAL; vis_cs_TDCP(storeData, 'E', settings.OTHER.CS.TDCP_threshold, settings.OTHER.CS.TDCP_sigma0); end
+        if isBDS; vis_cs_TDCP(storeData, 'C', settings.OTHER.CS.TDCP_threshold, settings.OTHER.CS.TDCP_sigma0); end
+        if isQZSS;vis_cs_TDCP(storeData, 'J', settings.OTHER.CS.TDCP_threshold, settings.OTHER.CS.TDCP_sigma0); end
+    end
+    % TDCP Statistics (Epoch-wise quality metrics: median_omc, sigma0, n_sats)
+    if isfield(settings.OTHER.CS, 'cs_tdcp') && settings.OTHER.CS.cs_tdcp && isfield(storeData, 'cs_tdcp_median_omc')
+        vis_cs_TDCP_stats(storeData, epochs);
+    end
 end
 if STOP_CALC; return; end
 

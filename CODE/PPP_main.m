@@ -293,11 +293,6 @@ for q = q_range         % loop over epochs
     % Epoch = cycleSlip_articifial(Epoch, obs.use_column);
     % Epoch = multipath_articifial(Epoch, obs.use_column);
 
-    % --- perform Cycle-Slip detection ---
-    if contains(settings.PROC.method,'Phase')   &&   (settings.OTHER.CS.l1c1 || settings.OTHER.CS.DF || settings.OTHER.CS.Doppler || settings.OTHER.CS.TimeDifference || settings.PROC.LLI)
-        [Epoch] = cycleSlip(Epoch, settings, obs.use_column);
-    end
-    
     % --- perform receiver clock jump detection ---
     if settings.PROC.bool_rec_clk_jump && ~isempty(Epoch.old.obs)
         init_ambiguities = DetectReceiverClockJump(Epoch, obs.use_column, init_ambiguities, ~settings.INPUT.bool_parfor);
@@ -305,6 +300,26 @@ for q = q_range         % loop over epochs
     
     % --- Adjust phase data to Code to limit the ambiguities ---
     if strcmpi(settings.PROC.method, 'Code + Phase') && (settings.PROC.AdjustPhase2Code || settings.PROC.bool_rec_clk_jump)
+        % Save raw observations before adjusting phase to code so that
+        % detectors (e.g., TDCP) can use unmodified raw-phase if needed.
+        if isfield(Epoch, 'L1') && ~isempty(Epoch.L1)
+            Epoch.L1_raw = Epoch.L1;
+        end
+        if isfield(Epoch, 'L2') && ~isempty(Epoch.L2)
+            Epoch.L2_raw = Epoch.L2;
+        end
+        if isfield(Epoch, 'L3') && ~isempty(Epoch.L3)
+            Epoch.L3_raw = Epoch.L3;
+        end
+        if isfield(Epoch, 'C1') && ~isempty(Epoch.C1)
+            Epoch.C1_raw = Epoch.C1;
+        end
+        if isfield(Epoch, 'C2') && ~isempty(Epoch.C2)
+            Epoch.C2_raw = Epoch.C2;
+        end
+        if isfield(Epoch, 'C3') && ~isempty(Epoch.C3)
+            Epoch.C3_raw = Epoch.C3;
+        end
         [init_ambiguities, Epoch] = AdjustPhase2Code(Epoch, init_ambiguities);
     end
     
@@ -333,6 +348,18 @@ for q = q_range         % loop over epochs
     % --- correct receiver biases ---
     if settings.INPUT.proc_freqs > 1 && ~settings.BIASES.estimate_rec_dcbs
         Epoch = correct_rec_biases(Epoch, obs);
+    end
+
+    % --- perform Cycle-Slip detection ---
+    bool_hmw = isfield(settings.OTHER.CS, 'HMW') && settings.OTHER.CS.HMW;
+    bool_tdcp = isfield(settings.OTHER.CS, 'cs_tdcp') && settings.OTHER.CS.cs_tdcp;
+    if contains(settings.PROC.method,'Phase')   &&   (settings.OTHER.CS.l1c1 || settings.OTHER.CS.DF || settings.OTHER.CS.Doppler || settings.OTHER.CS.TimeDifference || bool_tdcp || settings.PROC.LLI || bool_hmw)
+        if numel(Adjust.param) >= 3
+            last_pos = Adjust.param(1:3);
+        else
+            last_pos = settings.INPUT.pos_approx;
+        end
+        [Epoch] = cycleSlip(Epoch, settings, obs.use_column, input, last_pos, obs);
     end
     
     % --- Build LCs and processed observations -> Epoch.code/.phase ---

@@ -25,6 +25,17 @@ num_freq = settings.INPUT.proc_freqs;   % number of processed frequencies
 frqs = 1:num_freq;              % 1 : # processed frequencies
 num_sat = Epoch.no_sats;        % number of satellites in current epoch
 
+% TDCP is called before create_LC_observations.m in the processing chain,
+% so Epoch.code can still be empty/zero there. Fall back to C1 so the signal
+% transit time is still estimated from a valid code observation.
+if isfield(Epoch, 'code') && ~isempty(Epoch.code) && any(Epoch.code(:) ~= 0)
+    code_for_tau = Epoch.code;
+elseif isfield(Epoch, 'C1') && ~isempty(Epoch.C1)
+    code_for_tau = Epoch.C1;
+else
+    code_for_tau = zeros(num_sat, 1);
+end
+
 % indices of processed frequencies
 idx_frqs_gps  = settings.INPUT.gps_freq_idx(frqs);
 idx_frqs_glo  = settings.INPUT.glo_freq_idx(frqs);
@@ -78,7 +89,7 @@ for i_sat = 1:num_sat
     % ----- Clock and Orbit -----
     
     % --- Ttr....transmission time/time of emission
-    tau = Epoch.code(i_sat)/Const.C;    % approximate signal runtime from sat. to rec.
+    tau = code_for_tau(i_sat)/Const.C;    % approximate signal runtime from sat. to rec.
     Ttr = Epoch.gps_time - tau;       	% time of emission [sow (seconds of week)] = time of obs. - runtime
     
     % --- Get column of broadcast ephemerides for current satellite ---
@@ -106,7 +117,7 @@ for i_sat = 1:num_sat
         dT_sat_rel = dT_sat + dT_rel;
         
         % --- correction of Time of emission ---
-        tau = (Epoch.code(i_sat) + Const.C*dT_sat_rel)/Const.C; % corrected signal runtime
+        tau = (code_for_tau(i_sat) + Const.C*dT_sat_rel)/Const.C; % corrected signal runtime
         Ttr = Epoch.gps_time - tau;                             % time of emission = time of obs. - runtime
         
         % --- Satellite-Orbit: precise ephemeris (.sp3-file) or broadcast navigation data (perhabs + correction stream) ---
@@ -132,7 +143,7 @@ for i_sat = 1:num_sat
     % ----- Vectors, Angles, Distance between Receiver and Satellite -----
     
     % --- Azimuth, Elevation, zenith distance, cutoff-angle ---
-    [az, el] = topocent(pos_XYZ,Rot_X-pos_XYZ);     % calculate azimuth and elevation [°]
+    [az, el] = topocent(pos_XYZ,Rot_X-pos_XYZ);     % calculate azimuth and elevation [ï¿½]
     if el < settings.PROC.elev_mask         % elevation is under cut-off-angle
         cutoff = true;                      % eliminate satellite
         status(:) = 2;
@@ -257,7 +268,7 @@ for i_sat = 1:num_sat
     % --- Satellite Antenna Phase Center Correction ---
     % convert observation from Antenna Phase Center to Center of Mass which
     % is necessary when orbit/clock product refers to the CoM
-    % ||| check´n´change for not sp3
+    % ||| checkï¿½nï¿½change for not sp3
     dX_PCO_SAT_ECEF_corr = zeros(num_freq,1);
     if settings.OTHER.bool_sat_pco && settings.ORBCLK.bool_sp3 && ~cutoff   	
         % satellite Phase Center Offset and precise ephemerides are enabled
@@ -312,8 +323,8 @@ for i_sat = 1:num_sat
     model.trop(i_sat,frqs) = trop;              % Troposphere delay for elevation
     model.iono(i_sat,frqs) = iono(frqs);        % Ionosphere delay
     % Observation direction
-    model.az(i_sat,frqs)   = az;                % Satellite azimuth [°]
-    model.el(i_sat,frqs)   = el;                % Satellite elevation [°]
+    model.az(i_sat,frqs)   = az;                % Satellite azimuth [ï¿½]
+    model.el(i_sat,frqs)   = el;                % Satellite elevation [ï¿½]
     % Phase center offsets and variations
     model.dX_ARP_ECEF_corr(i_sat,frqs)= dX_ARP_ECEF_corr;               % Receiver antenna reference point correction in ECEF
     model.dX_PCO_rec_corr(i_sat,frqs) = dX_PCO_REC_ECEF_corr(frqs);     % Receiver phase center offset correction in ECEF

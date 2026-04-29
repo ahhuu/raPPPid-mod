@@ -14,7 +14,7 @@ function [satellites, storeData, model_save] = ...
 %   Adjust          struct, contains adjustment-specific data
 %   model           struct, contains all modeled error-sources
 %   model_save      struct, collects all modeled errors from model
-%	HMW_12,...      matrix, Hatch-Melbourne-Wübbena LC observables
+%	HMW_12,...      matrix, Hatch-Melbourne-Wï¿½bbena LC observables
 % OUTPUT:
 %   satellites, storeData, model_save
 %                   updated with data of the current epoch
@@ -39,7 +39,7 @@ decoupled_clock_model = strcmp(settings.IONO.model, 'Estimate, decoupled clock')
 %% satellite variables
 satellites.obs(q,prns)  = Epoch.tracked(prns);  	% save number of epochs satellite is tracked
 satellites.elev(q,prns) = model.el(:,1);	% save elevation of satellites
-satellites.az  (q,prns) = model.az(:,1); 	% save azimuth [°] of satellites
+satellites.az  (q,prns) = model.az(:,1); 	% save azimuth [ï¿½] of satellites
 
 % Save Carrier-to-Noise density
 if ~isempty(Epoch.S1)
@@ -166,7 +166,7 @@ if settings.OTHER.CS.l1c1
     storeData.cs_L1C1(q,prns) = Epoch.cs_L1C1(1,prns);
     storeData.cs_pred_SF(q,prns) = Epoch.cs_pred_SF(prns);
 end
-if settings.OTHER.CS.DF && strcmpi(settings.PROC.method,'Code + Phase') && ~isempty(Epoch.cs_dL1dL2)
+if (settings.OTHER.CS.DF || settings.OTHER.CS.MWGF_enable) && strcmpi(settings.PROC.method,'Code + Phase') && ~isempty(Epoch.cs_dL1dL2)
     storeData.cs_dL1dL2(q,:)   = Epoch.cs_dL1dL2;
     if settings.INPUT.num_freqs > 2
         storeData.cs_dL1dL3(q,:)   = Epoch.cs_dL1dL3;
@@ -181,6 +181,46 @@ end
 if settings.OTHER.CS.TimeDifference
     L_diff_n = diff(Epoch.cs_phase_obs(:,Epoch.sats), settings.OTHER.CS.TD_degree, 1);
     storeData.cs_L1_diff(q,prns) = L_diff_n;
+end
+if isfield(Epoch, 'TDCP_v')
+    storeData.cs_tdcp_v(q, prns) = Epoch.TDCP_v;
+    storeData.cs_tdcp_sigma0(q)  = Epoch.TDCP_sigma0;
+    if isfield(Epoch, 'TDCP_stats')
+        storeData.cs_tdcp_median_omc(q) = Epoch.TDCP_stats.median_omc;
+        storeData.cs_tdcp_n_sats(q)     = Epoch.TDCP_stats.n_sats;
+        if isfield(Epoch.TDCP_stats, 'clock_term')
+            storeData.cs_tdcp_clock_term(q) = Epoch.TDCP_stats.clock_term;
+        end
+        if isfield(Epoch.TDCP_stats, 'freq_used')
+            storeData.cs_tdcp_freq_used(q) = Epoch.TDCP_stats.freq_used;
+        end
+    end
+end
+if isfield(Epoch, 'TDCP_v_freq')
+    n_freq_tdcp = size(Epoch.TDCP_v_freq, 2);
+    storeData.cs_tdcp_v_freq(q, prns, 1:n_freq_tdcp) = Epoch.TDCP_v_freq;
+end
+if isfield(Epoch, 'TDCP_sigma0_freq')
+    storeData.cs_tdcp_sigma0_freq(q, :) = Epoch.TDCP_sigma0_freq;
+end
+if isfield(Epoch, 'TDCP_median_omc_freq')
+    storeData.cs_tdcp_median_omc_freq(q, :) = Epoch.TDCP_median_omc_freq;
+end
+if isfield(Epoch, 'TDCP_n_sats_freq')
+    storeData.cs_tdcp_n_sats_freq(q, :) = Epoch.TDCP_n_sats_freq;
+end
+if isfield(Epoch, 'TDCP_clock_term_freq')
+    storeData.cs_tdcp_clock_term_freq(q, :) = Epoch.TDCP_clock_term_freq;
+end
+if isfield(settings.OTHER.CS, 'HMW') && (settings.OTHER.CS.HMW || settings.OTHER.CS.MWGF_enable) && isfield(Epoch, 'cs_WL_12_diff')
+    storeData.cs_WL_12_diff(q,:) = Epoch.cs_WL_12_diff;
+    storeData.cs_var_12(q,:) = Epoch.cs_var_12;
+    if settings.INPUT.proc_freqs > 2
+        storeData.cs_WL_13_diff(q,:) = Epoch.cs_WL_13_diff;
+        storeData.cs_var_13(q,:) = Epoch.cs_var_13;
+        storeData.cs_WL_23_diff(q,:) = Epoch.cs_WL_23_diff;
+        storeData.cs_var_23(q,:) = Epoch.cs_var_23;
+    end
 end
 
 
@@ -223,7 +263,7 @@ if settings.AMBFIX.bool_AMBFIX
         storeData.N3_fixed(q,prns) = Adjust.N3_fixed;     % fixed ambiguity 3rd frequency
         storeData.iono_fixed(q,prns) = Adjust.iono_fix;   % fixed ionospheric delay estimation
     end
-    % save Hatch-Melbourne-Wübbena LCs
+    % save Hatch-Melbourne-Wï¿½bbena LCs
     storeData.HMW_12(q,prns) = HMW_12(q,prns);
     if proc_frqs >= 2
         storeData.HMW_23(q,prns) = HMW_23(q,prns);

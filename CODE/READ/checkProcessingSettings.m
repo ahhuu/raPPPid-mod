@@ -84,6 +84,17 @@ DecoupledClockModel = strcmp(settings.IONO.model, 'Estimate, decoupled clock');
 
 
 
+%% Backward compatibility: TDCP Cycle Slip Detection
+if ~isfield(settings.OTHER.CS, 'cs_tdcp')
+    settings.OTHER.CS.cs_tdcp = false;
+end
+if ~isfield(settings.OTHER.CS, 'TDCP_threshold')
+    settings.OTHER.CS.TDCP_threshold = 0.05;
+end
+if ~isfield(settings.OTHER.CS, 'TDCP_sigma0')
+    settings.OTHER.CS.TDCP_sigma0 = 0.03;
+end
+
 %% Backward compatibility: BDS-2/BDS-3 ISB
 if ~isfield(settings.BIASES, 'estimate_bds23_isb')
     settings.BIASES.estimate_bds23_isb = false;
@@ -911,10 +922,22 @@ if settings.INPUT.use_QZSS && ~settings.ORBCLK.bool_precise
 end
 
 % Check for negative cycle slip detection thresholds
+if ~isfield(settings.OTHER.CS, 'HMW'); settings.OTHER.CS.HMW = false; end
+if ~isfield(settings.OTHER.CS, 'HMW_factor'); settings.OTHER.CS.HMW_factor = 4.0; end
+if ~isfield(settings.OTHER.CS, 'HMW_threshold'); settings.OTHER.CS.HMW_threshold = 1.0; end
+if ~isfield(settings.OTHER.CS, 'MWGF_enable'); settings.OTHER.CS.MWGF_enable = settings.OTHER.CS.HMW && settings.OTHER.CS.DF; end
+if ~isfield(settings.OTHER.CS, 'MWGF_logic'); settings.OTHER.CS.MWGF_logic = 'AND'; end
+
 if settings.OTHER.CS.l1c1_window <= 0 || settings.OTHER.CS.l1c1_threshold <= 0 || ...
         settings.OTHER.CS.DF_threshold <= 0 || settings.OTHER.CS.D_threshold <= 0 || ...
-        settings.OTHER.CS.TD_threshold <= 0
+        settings.OTHER.CS.TD_threshold <= 0 || settings.OTHER.CS.HMW_factor <= 0 || ...
+        settings.OTHER.CS.HMW_threshold <= 0
     errordlg({'Please check your cycle slip detection settings!', 'Negative threshold can not be used.'}, windowname);
+    valid_settings = false; return
+end
+
+if ~any(strcmpi(settings.OTHER.CS.MWGF_logic, {'AND','OR'}))
+    errordlg({'Please check your MW+GF logic setting!', 'Only AND or OR are allowed.'}, windowname);
     valid_settings = false; return
 end
 
@@ -942,6 +965,10 @@ if num_freq == 1 && ~prebatch_check
     % Cycle Slip Detection with dL1-dL2-difference is not possible
     if settings.OTHER.CS.DF && contains(settings.PROC.method, 'Phase')
         errordlg({'Only 1-Frequency is processed:', 'Cycle-Slip Detection dL1-dL2 is not possible!'}, windowname);
+        valid_settings = false; return
+    end
+    if settings.OTHER.CS.HMW && contains(settings.PROC.method, 'Phase')
+        errordlg({'Only 1-Frequency is processed:', 'Cycle-Slip Detection HMW is not possible!'}, windowname);
         valid_settings = false; return
     end
     if strcmp(settings.IONO.model,'2-Frequency-IF-LCs')
@@ -1136,7 +1163,7 @@ end
 %% Message Boxes
 
 % Print out information if no cycle-slip detection method is enabled
-if ~settings.OTHER.CS.TimeDifference && ~settings.OTHER.CS.l1c1 && ~settings.OTHER.CS.DF && ~settings.OTHER.CS.Doppler && strcmp(settings.PROC.method, 'Code + Phase')
+if ~settings.OTHER.CS.TimeDifference && ~settings.OTHER.CS.l1c1 && ~settings.OTHER.CS.DF && ~settings.OTHER.CS.Doppler && ~settings.OTHER.CS.HMW && strcmp(settings.PROC.method, 'Code + Phase')
     msgbox('Be careful: All cycle-slip detection methods are disabled!', 'Cycle-Slip-Detection', 'help')
 end
 

@@ -784,19 +784,71 @@ set(handles.checkbox_CycleSlip_L1C1,       'Value',  structure.OTHER.CS.l1c1);
 set(handles.edit_CycleSlip_L1C1_window,    'String', num2str(structure.OTHER.CS.l1c1_window));
 set(handles.edit_CycleSlip_L1C1_threshold, 'String', num2str(structure.OTHER.CS.l1c1_threshold));
 
-% cycle-slip detection dL1-dL2
-set(handles.checkbox_CycleSlip_DF,       'Value',  structure.OTHER.CS.DF);
-set(handles.edit_CycleSlip_DF_threshold, 'String', num2str(structure.OTHER.CS.DF_threshold));
+% Cycle Slip Detection (Consolidated Safe Block)
+if isfield(structure.OTHER, 'CS')
+    % HMW
+    if isfield(handles, 'checkbox_CycleSlip_HMW') && isfield(structure.OTHER.CS, 'HMW')
+        set(handles.checkbox_CycleSlip_HMW, 'Value', structure.OTHER.CS.HMW);
+    end
+    if isfield(handles, 'edit_CycleSlip_HMW_factor') && isfield(structure.OTHER.CS, 'HMW_factor')
+        set(handles.edit_CycleSlip_HMW_factor, 'String', num2str(structure.OTHER.CS.HMW_factor));
+    end
+    if isfield(handles, 'edit_CycleSlip_HMW_threshold') && isfield(structure.OTHER.CS, 'HMW_threshold')
+        set(handles.edit_CycleSlip_HMW_threshold, 'String', num2str(structure.OTHER.CS.HMW_threshold));
+    end
 
-% cycle-slip detection Doppler-Shift
-set(handles.checkbox_CycleSlip_Doppler,      'Value',  structure.OTHER.CS.Doppler);
-set(handles.edit_CycleSlip_Doppler_threshold, 'String', num2str(structure.OTHER.CS.D_threshold));
+    % dL1-dL2 difference
+    if isfield(handles, 'checkbox_CycleSlip_DF') && isfield(structure.OTHER.CS, 'DF')
+        set(handles.checkbox_CycleSlip_DF, 'Value', structure.OTHER.CS.DF);
+    end
+    if isfield(handles, 'edit_CycleSlip_DF_threshold') && isfield(structure.OTHER.CS, 'DF_threshold')
+        set(handles.edit_CycleSlip_DF_threshold, 'String', num2str(structure.OTHER.CS.DF_threshold));
+    end
 
-% cycle-slip detection time difference
-try
-set(handles.checkbox_cs_td, 'Value', structure.OTHER.CS.TimeDifference); 
-set(handles.edit_cs_td_thresh, 'String', num2str(structure.OTHER.CS.TD_threshold));
-set(handles.edit_cs_td_degree, 'String', num2str(structure.OTHER.CS.TD_degree));
+    % Doppler-Shift
+    if isfield(handles, 'checkbox_CycleSlip_Doppler') && isfield(structure.OTHER.CS, 'Doppler')
+        set(handles.checkbox_CycleSlip_Doppler, 'Value', structure.OTHER.CS.Doppler);
+    end
+    if isfield(handles, 'edit_CycleSlip_Doppler_threshold') && isfield(structure.OTHER.CS, 'D_threshold')
+        set(handles.edit_CycleSlip_Doppler_threshold, 'String', num2str(structure.OTHER.CS.D_threshold));
+    end
+
+    % Time difference
+    if isfield(handles, 'checkbox_cs_td') && isfield(structure.OTHER.CS, 'TimeDifference')
+        set(handles.checkbox_cs_td, 'Value', structure.OTHER.CS.TimeDifference); 
+    end
+    if isfield(handles, 'edit_cs_td_thresh') && isfield(structure.OTHER.CS, 'TD_threshold')
+        set(handles.edit_cs_td_thresh, 'String', num2str(structure.OTHER.CS.TD_threshold));
+    end
+    if isfield(handles, 'edit_cs_td_degree') && isfield(structure.OTHER.CS, 'TD_degree')
+        set(handles.edit_cs_td_degree, 'String', num2str(structure.OTHER.CS.TD_degree));
+    end
+
+    % TDCP residuals
+    if isfield(handles, 'checkbox_cs_tdcp') && isfield(structure.OTHER.CS, 'cs_tdcp')
+        set(handles.checkbox_cs_tdcp, 'Value', structure.OTHER.CS.cs_tdcp);
+    elseif isfield(handles, 'checkbox_cs_tdcp') && isfield(structure.OTHER.CS, 'TDCP')
+        set(handles.checkbox_cs_tdcp, 'Value', structure.OTHER.CS.TDCP);
+    end
+    if isfield(handles, 'edit_cs_tdcp_threshold') && isfield(structure.OTHER.CS, 'TDCP_threshold')
+        set(handles.edit_cs_tdcp_threshold, 'String', num2str(structure.OTHER.CS.TDCP_threshold));
+    end
+    if isfield(handles, 'edit_cs_tdcp_sigma0') && isfield(structure.OTHER.CS, 'TDCP_sigma0')
+        set(handles.edit_cs_tdcp_sigma0, 'String', num2str(structure.OTHER.CS.TDCP_sigma0));
+    end
+
+    % MWGF
+    if isfield(handles, 'checkbox_CycleSlip_MWGF_enable') && isfield(structure.OTHER.CS, 'MWGF_enable')
+        set(handles.checkbox_CycleSlip_MWGF_enable, 'Value', structure.OTHER.CS.MWGF_enable);
+    end
+    if isfield(handles, 'popupmenu_CycleSlip_MWGF_logic') && isfield(structure.OTHER.CS, 'MWGF_logic')
+        logicOpts = get(handles.popupmenu_CycleSlip_MWGF_logic, 'String');
+        if iscell(logicOpts)
+            idxLogic = find(strcmpi(logicOpts, structure.OTHER.CS.MWGF_logic), 1);
+            if isempty(idxLogic); idxLogic = 1; end
+            set(handles.popupmenu_CycleSlip_MWGF_logic, 'Value', idxLogic);
+        end
+    end
 end
 
 % multipath detection

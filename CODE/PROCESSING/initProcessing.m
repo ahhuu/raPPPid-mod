@@ -118,6 +118,13 @@ Epoch.cs_found = [];
 Epoch.cs_dL1dL2 = [];
 Epoch.cs_dL1dL3 = [];
 Epoch.cs_dL2dL3 = [];
+Epoch.cs_found_MW = [];
+Epoch.cs_found_GF = [];
+Epoch.cs_pred_SF = NaN(nnn,1);
+Epoch.cs_HMW_k = zeros(3, nnn);
+Epoch.cs_HMW_av = zeros(3, nnn);
+Epoch.cs_HMW_var = zeros(3, nnn);
+Epoch.cs_HMW = zeros(3, nnn);
 if settings.OTHER.CS.l1c1
     % difference L1 minus C1 [m], 1st row = last epoch, 2nd row = 2nd last epoch, ...
     Epoch.cs_L1C1     = NaN(settings.OTHER.CS.l1c1_window,nnn);
@@ -310,6 +317,25 @@ end
 % time difference
 if settings.OTHER.CS.TimeDifference 
     storeData.cs_L1_diff	= zeros(tot_eps,nnn); % phase (L1) difference of last n epochs
+end
+% TDCP Residuals
+storeData.cs_tdcp_v      = zeros(tot_eps, nnn);
+storeData.cs_tdcp_sigma0 = zeros(tot_eps, 1);
+storeData.cs_tdcp_v_freq = NaN(tot_eps, nnn, proc_frqs);
+storeData.cs_tdcp_sigma0_freq = NaN(tot_eps, proc_frqs);
+storeData.cs_tdcp_median_omc_freq = NaN(tot_eps, proc_frqs);
+storeData.cs_tdcp_n_sats_freq = NaN(tot_eps, proc_frqs);
+storeData.cs_tdcp_clock_term_freq = NaN(tot_eps, proc_frqs);
+storeData.cs_tdcp_freq_used = NaN(tot_eps, 1);
+if isfield(settings.OTHER.CS, 'HMW') && settings.OTHER.CS.HMW
+    storeData.cs_WL_12_diff = zeros(tot_eps, nnn);
+    storeData.cs_var_12 = zeros(tot_eps, nnn);
+    if settings.INPUT.proc_freqs > 2
+        storeData.cs_WL_13_diff = zeros(tot_eps, nnn);
+        storeData.cs_var_13 = zeros(tot_eps, nnn);
+        storeData.cs_WL_23_diff = zeros(tot_eps, nnn);
+        storeData.cs_var_23 = zeros(tot_eps, nnn);
+    end
 end
 
 % multipath detection

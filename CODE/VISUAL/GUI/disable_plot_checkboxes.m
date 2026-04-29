@@ -44,7 +44,7 @@ if contains(settings.IONO.model, 'IF-LCs') || strcmp(settings.IONO.model, 'off')
     set(handles.checkbox_plot_iono,          'Enable', 'off');
     set(handles.checkbox_plot_iono,          'Value', 0);
 end
-if ~contains(settings.PROC.method, 'Phase') || (~settings.OTHER.CS.l1c1 && ~settings.OTHER.CS.DF && ~settings.OTHER.CS.Doppler && ~settings.OTHER.CS.TimeDifference)
+if ~contains(settings.PROC.method, 'Phase') || (~settings.OTHER.CS.l1c1 && ~settings.OTHER.CS.DF && ~settings.OTHER.CS.Doppler && ~settings.OTHER.CS.TimeDifference && (~isfield(settings.OTHER.CS, 'HMW') || ~settings.OTHER.CS.HMW))
     % no cycle-slip-detection is enabled
     set(handles.checkbox_plot_cs,            'Enable', 'off');
     set(handles.checkbox_plot_cs,            'Value', 0);

@@ -317,6 +317,52 @@ settings.OTHER.CS.D_threshold = str2double(get(handles.edit_CycleSlip_Doppler_th
 settings.OTHER.CS.TimeDifference = get(handles.checkbox_cs_td, 'Value');
 settings.OTHER.CS.TD_threshold = str2double(get(handles.edit_cs_td_thresh, 'String'));
 settings.OTHER.CS.TD_degree = str2double(get(handles.edit_cs_td_degree, 'String'));
+
+% cycle-slip detector TDCP residuals
+if isfield(handles, 'checkbox_cs_tdcp')
+    settings.OTHER.CS.cs_tdcp = get(handles.checkbox_cs_tdcp, 'Value');
+else
+    settings.OTHER.CS.cs_tdcp = false;
+end
+if isfield(handles, 'edit_cs_tdcp_threshold')
+    settings.OTHER.CS.TDCP_threshold = str2double(get(handles.edit_cs_tdcp_threshold, 'String'));
+else
+    settings.OTHER.CS.TDCP_threshold = 0.05;
+end
+if isfield(handles, 'edit_cs_tdcp_sigma0')
+    settings.OTHER.CS.TDCP_sigma0 = str2double(get(handles.edit_cs_tdcp_sigma0, 'String'));
+else
+    settings.OTHER.CS.TDCP_sigma0 = 0.03;
+end
+
+% cycle-slip detector HMW / MW+GF
+if isfield(handles, 'checkbox_CycleSlip_HMW')
+    settings.OTHER.CS.HMW = get(handles.checkbox_CycleSlip_HMW, 'Value');
+else
+    settings.OTHER.CS.HMW = false;
+end
+if isfield(handles, 'edit_CycleSlip_HMW_factor')
+    settings.OTHER.CS.HMW_factor = str2double(get(handles.edit_CycleSlip_HMW_factor, 'String'));
+else
+    settings.OTHER.CS.HMW_factor = 4.0;
+end
+if isfield(handles, 'edit_CycleSlip_HMW_threshold')
+    settings.OTHER.CS.HMW_threshold = str2double(get(handles.edit_CycleSlip_HMW_threshold, 'String'));
+else
+    settings.OTHER.CS.HMW_threshold = 1.0;
+end
+if isfield(handles, 'checkbox_CycleSlip_MWGF_enable')
+    settings.OTHER.CS.MWGF_enable = get(handles.checkbox_CycleSlip_MWGF_enable, 'Value');
+else
+    settings.OTHER.CS.MWGF_enable = false;
+end
+if isfield(handles, 'popupmenu_CycleSlip_MWGF_logic')
+    contents = cellstr(get(handles.popupmenu_CycleSlip_MWGF_logic, 'String'));
+    settings.OTHER.CS.MWGF_logic = contents{get(handles.popupmenu_CycleSlip_MWGF_logic, 'Value')};
+else
+    settings.OTHER.CS.MWGF_logic = 'AND';
+end
+
 % multipath detection
 settings.OTHER.mp_detection = get(handles.checkbox_mp_detection, 'Value');
 settings.OTHER.mp_degree = str2double(get(handles.edit_mp_degree, 'String'));

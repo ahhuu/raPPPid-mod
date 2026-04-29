@@ -332,26 +332,44 @@ if settings.OTHER.bool_rec_arp || settings.OTHER.bool_rec_pco || settings.OTHER.
 else
     fprintf(fileID,'  %s\n','No Other Corrections');
 end
-if settings.OTHER.CS.l1c1 || settings.OTHER.CS.DF || settings.OTHER.CS.Doppler
-    fprintf(fileID,'  %s\n','Cycle-Slip-Detection:');
-    if settings.OTHER.CS.l1c1
-        fprintf(fileID,'    %s%.2f%s%.2f%s%d%s\n','L1-C1: threshold = ',settings.OTHER.CS.l1c1_threshold,' [m], window-size = ',settings.OTHER.CS.l1c1_window,' [epochs]' );
+if ~isfield(settings.OTHER.CS, 'HMW'); settings.OTHER.CS.HMW = false; end
+if ~isfield(settings.OTHER.CS, 'HMW_factor'); settings.OTHER.CS.HMW_factor = 4.0; end
+if ~isfield(settings.OTHER.CS, 'HMW_threshold'); settings.OTHER.CS.HMW_threshold = 1.0; end
+if ~isfield(settings.OTHER.CS, 'MWGF_enable'); settings.OTHER.CS.MWGF_enable = settings.OTHER.CS.HMW && settings.OTHER.CS.DF; end
+if ~isfield(settings.OTHER.CS, 'MWGF_logic'); settings.OTHER.CS.MWGF_logic = 'AND'; end
+
+    bool_tdcp = isfield(settings.OTHER.CS, 'cs_tdcp') && settings.OTHER.CS.cs_tdcp;
+    if settings.OTHER.CS.l1c1 || settings.OTHER.CS.DF || settings.OTHER.CS.Doppler || settings.OTHER.CS.TimeDifference || settings.OTHER.CS.HMW || bool_tdcp
+        fprintf(fileID,'  %s\n','Cycle-Slip-Detection:');
+        if settings.OTHER.CS.l1c1
+            fprintf(fileID,'    %s%.2f%s%.2f%s%d%s\n','L1-C1: threshold = ',settings.OTHER.CS.l1c1_threshold,' [m], window-size = ',settings.OTHER.CS.l1c1_window,' [epochs]' );
+        end
+        if settings.OTHER.CS.DF
+            fprintf(fileID,'    %s%.2f%s\n','dL1-dL2: threshold = ',settings.OTHER.CS.DF_threshold,' [m]');
+        end
+        if settings.OTHER.CS.Doppler
+            fprintf(fileID,'    %s%.2f%s\n','Doppler-Shift: threshold = ',settings.OTHER.CS.D_threshold,' [cy]');
+        end
+        if settings.OTHER.CS.TimeDifference
+            fprintf(fileID,'    %s%.2f%s%.2f%s%d\n','Time difference: threshold = ',settings.OTHER.CS.TD_threshold,' [m], degree = ',settings.OTHER.CS.TD_degree );
+        end
+        if settings.OTHER.CS.HMW
+            fprintf(fileID,'    %s%.2f%s%.2f%s\n','HMW: factor = ',settings.OTHER.CS.HMW_factor,', threshold = ',settings.OTHER.CS.HMW_threshold,' [cy]');
+        end
+        if bool_tdcp
+            tdcp_thresh = 0.05; if isfield(settings.OTHER.CS, 'TDCP_threshold'); tdcp_thresh = settings.OTHER.CS.TDCP_threshold; end
+            tdcp_sigma0 = 0.03; if isfield(settings.OTHER.CS, 'TDCP_sigma0'); tdcp_sigma0 = settings.OTHER.CS.TDCP_sigma0; end
+            fprintf(fileID,'    %s%.2f%s%.3f%s\n','TDCP (Iterative LS): threshold = ', tdcp_thresh, ' [m], sigma0 threshold = ', tdcp_sigma0, ' [m]');
+        end
+        if settings.OTHER.CS.MWGF_enable
+            fprintf(fileID,'    %s%s\n','MW+GF logic: ',settings.OTHER.CS.MWGF_logic);
+        end
+        if settings.PROC.LLI
+            fprintf(fileID,'    %s\n','LLI from RINEX is used');
+        end
+    else
+        fprintf(fileID,'  %s\n','No Cycle-Slip-Detection');
     end
-    if settings.OTHER.CS.DF
-        fprintf(fileID,'    %s%.2f%s\n','dL1-dL2: threshold = ',settings.OTHER.CS.DF_threshold,' [m]');
-    end
-    if settings.OTHER.CS.Doppler
-        fprintf(fileID,'    %s%.2f%s\n','Doppler-Shift: threshold = ',settings.OTHER.CS.D_threshold,' [cy]');
-    end
-    if settings.OTHER.CS.TimeDifference
-        fprintf(fileID,'    %s%.2f%s%.2f%s%d\n','Time difference: threshold = ',settings.OTHER.CS.TD_threshold,' [m], degree = ',settings.OTHER.CS.TD_degree );
-    end    
-    if settings.PROC.LLI
-        fprintf(fileID,'    %s\n','LLI from RINEX is used');
-    end
-else
-    fprintf(fileID,'  %s\n','No Cycle-Slip-Detection');
-end
 if settings.OTHER.mp_detection
     fprintf(fileID,'  %s\n','Multipath Detection is on:');
     fprintf(fileID,'    %s%.2f%s%.2f%s%d%s%d\n','Code difference: threshold = ',settings.OTHER.mp_thresh,' [m], degree = ',settings.OTHER.mp_degree,', cooldown = ', settings.OTHER.mp_cooldown);

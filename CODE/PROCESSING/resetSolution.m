@@ -83,7 +83,7 @@ if resetnow
         % restart fixing in [GUI-definded] epochs
         settings.AMBFIX.start_fixing(end+1, :) = ...    % -1 as we are already in epoch where reset is happening
             [q+settings.AMBFIX.start_WL-1, q+settings.AMBFIX.start_NL-1];   
-        % reset Melboure-Wübbena LCs (ATTENTION: values of MW are overwritten!)
+        % reset Melboure-Wï¿½bbena LCs (ATTENTION: values of MW are overwritten!)
         HMW_12(1:q,:) = 0;
         HMW_23(1:q,:) = 0;
         HMW_13(1:q,:) = 0;
@@ -102,6 +102,18 @@ if resetnow
     end
     if settings.OTHER.CS.TimeDifference
         Epoch.cs_phase_obs(:,:) = NaN;
+    end
+    if isfield(Epoch, 'cs_HMW_k')
+        Epoch.cs_HMW_k(:,:) = 0;
+    end
+    if isfield(Epoch, 'cs_HMW_av')
+        Epoch.cs_HMW_av(:,:) = 0;
+    end
+    if isfield(Epoch, 'cs_HMW_var')
+        Epoch.cs_HMW_var(:,:) = 0;
+    end
+    if isfield(Epoch, 'cs_HMW')
+        Epoch.cs_HMW(:,:) = 0;
     end
     
     % reset collected data of multipath detection

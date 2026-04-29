@@ -189,6 +189,8 @@ if isfield(handles, 'checkbox_bds23_isb')
     end
 end
 
+% --- GUI layout handled by GUIDE ---
+
 % Update handles structure
 guidata(hObject, handles);
 
@@ -3463,6 +3465,21 @@ end
 
 % dL1-dL2 difference
 function checkbox_CycleSlip_DF_Callback(hObject, eventdata, handles)
+end
+
+function checkbox_CycleSlip_HMW_Callback(hObject, eventdata, handles)
+handles = GUI_enable_onoff(handles);
+guidata(hObject, handles);
+end
+
+function checkbox_CycleSlip_MWGF_enable_Callback(hObject, eventdata, handles)
+handles = GUI_enable_onoff(handles);
+guidata(hObject, handles);
+end
+
+function checkbox_cs_tdcp_Callback(hObject, eventdata, handles)
+handles = GUI_enable_onoff(handles);
+guidata(hObject, handles);
 end
 
 function edit_CycleSlip_DF_threshold_Callback(hObject, eventdata, handles)
