@@ -24,7 +24,12 @@ filtersetts.ADJ.filter.dynmodel_coord = get(handles.popupmenu_filter_coord_dynmo
 
 % Velocity
 filtersetts.ADJ.filter.var_velocity  = str2double( get(handles.edit_filter_velocity_sigma0, 'String') )^2;	% a-priori-variance of velocity
-filtersetts.ADJ.filter.Q_velocity   = str2double( get(handles.edit_filter_velocity_Q, 'String') )^2;        % system noise of velocity
+% Read velocity system noise (can be scalar or vector [Q_east, Q_north, Q_up] for anisotropic noise)
+vel_Q_val = str2num(get(handles.edit_filter_velocity_Q, 'String'));
+if isempty(vel_Q_val)
+    vel_Q_val = 0.05;
+end
+filtersetts.ADJ.filter.Q_velocity = vel_Q_val.^2;
 filtersetts.ADJ.filter.dynmodel_velocity = get(handles.popupmenu_filter_velocity_dynmodel, 'Value') - 1;    % dynamic model of velocity
 
 % Zenith Wet Delay

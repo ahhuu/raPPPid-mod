@@ -202,7 +202,7 @@ end
 fprintf(fileID,'  %s%s %s\n','zwd: ', settings.TROPO.zwd, detectGridSiteWise(settings.TROPO.zwd, input, settings.TROPO.vmf_version));
 if strcmpi(settings.TROPO.zwd,'e (in situ) + Askne')
     fprintf(fileID,'    %s%5.2f%s\n','q: ', settings.TROPO.q,' %');
-    fprintf(fileID,'    %s%6.2f%s\n','T: ', settings.TROPO.T,' °C');
+    fprintf(fileID,'    %s%6.2f%s\n','T: ', settings.TROPO.T,' ï¿½C');
 elseif strcmpi(settings.TROPO.zwd,'Tropo file') && strcmpi(settings.TROPO.tropo_file,'manually')
     fprintf(fileID,'    %s: %s\n', 'manually', settings.TROPO.tropo_filepath);    
 end
@@ -327,6 +327,9 @@ if settings.OTHER.CS.l1c1 || settings.OTHER.CS.DF || settings.OTHER.CS.Doppler
     if settings.OTHER.CS.TimeDifference
         fprintf(fileID,'    %s%.2f%s%.2f%s%d\n','Time difference: threshold = ',settings.OTHER.CS.TD_threshold,' [m], degree = ',settings.OTHER.CS.TD_degree );
     end    
+    if isfield(settings.OTHER.CS,'cs_tdcp') && settings.OTHER.CS.cs_tdcp
+        fprintf(fileID,'    %s%.2f%s%.2f%s\n','TDCP: threshold = ',settings.OTHER.CS.TDCP_threshold,' [m], sigma0 threshold = ', settings.OTHER.CS.TDCP_sigma0,' [m]');
+    end
     if settings.OTHER.CS.HMW
         fprintf(fileID,'    %s%.2f%s%.2f%s%d\n','HMW LC: threshold = ',settings.OTHER.CS.HMW_threshold,' [cy], factor = ',settings.OTHER.CS.HMW_factor );
     end    
@@ -382,17 +385,11 @@ fprintf(fileID,'  %s','Weighting Scheme for Observations: ');
 if settings.ADJ.weight_mplc
     fprintf(fileID,'%s\n','Multipath-LC');
 elseif settings.ADJ.weight_elev
-    if ischar(settings.ADJ.elev_weight_fun)
-        fprintf(fileID,'%s%s\n','Elevation: ', settings.ADJ.elev_weight_fun);
-    else
-        fprintf(fileID,'%s%s\n','Elevation, function: ', strrep(func2str(settings.ADJ.elev_weight_fun), '@(e)', ''));
-    end
+    fprintf(fileID,'%s%s\n','Elevation, function: ', weightSetting2Str(settings.ADJ.elev_weight_fun));
 elseif settings.ADJ.weight_sign_str
-    if ischar(settings.ADJ.snr_weight_fun)
-        fprintf(fileID,'%s%s\n','C/N0: ', settings.ADJ.snr_weight_fun);
-    else
-        fprintf(fileID,'%s%s\n','C/N0, function: ', strrep(func2str(settings.ADJ.snr_weight_fun), '@(snr)', ''));
-    end
+    fprintf(fileID,'%s%s\n','C/N0, function: ', weightSetting2Str(settings.ADJ.snr_weight_fun));
+elseif settings.ADJ.weight_snr_elev
+    fprintf(fileID,'%s%s\n','C/N0 and elevation, function: ', weightSetting2Str(settings.ADJ.snr_elev_weight_fun));
 elseif settings.ADJ.weight_bore
     fprintf(fileID,'%s\n','Boresight angle');
 elseif settings.ADJ.weight_none
@@ -511,7 +508,7 @@ if settings.AMBFIX.bool_AMBFIX
     if ~bool_DCM
         fprintf(fileID,'  %s%.2f%s%.2f%s%.0f%s\n','HMW fixing: threshold = ', settings.AMBFIX.HMW_thresh, ' [cy], releasing threshold = ', settings.AMBFIX.HMW_release, ' [cy], window = ', settings.AMBFIX.HMW_window, ' [s]');
     end
-    fprintf(fileID,'  %s%d\n','Fixing cutoff [°]: ', settings.AMBFIX.cutoff);
+    fprintf(fileID,'  %s%d\n','Fixing cutoff [ï¿½]: ', settings.AMBFIX.cutoff);
     fprintf(fileID,'  %s%s\n','Choice of Reference Satellite: ', settings.AMBFIX.refSatChoice);
     if strcmp(settings.AMBFIX.refSatChoice, 'manual choice (list):')
         fprintf(fileID,'    %s%d\n','GPS: ', settings.AMBFIX.refSatGPS);
@@ -645,7 +642,7 @@ if ~bool
 end
 
 fprintf(fileID,'  Satellite Exclusion Criteria:\n');
-fprintf(fileID,'    %s%d%s\n', 'Elevation Cutoff: ',settings.PROC.elev_mask,' [°]');
+fprintf(fileID,'    %s%d%s\n', 'Elevation Cutoff: ',settings.PROC.elev_mask,' [ï¿½]');
 fprintf(fileID,'    %s%s%s\n', 'C/N0 Cutoff: ', num2str(settings.PROC.SNR_mask),' [db-Hz]');
 fprintf(fileID,'    %s%d\n', 'Signal Strength Threshold: ',settings.PROC.ss_thresh);
 
@@ -783,6 +780,9 @@ fprintf(fileID,'  raPPPid %s', DEF.version);
 
 %% close file
 fclose(fileID);
+
+end
+
 
 
 

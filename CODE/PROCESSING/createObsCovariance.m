@@ -231,6 +231,59 @@ end
 
 
 
+% === 3. Apply consFreSpe L5/E5a/B2a Frequency-Specific Code Weighting & SNR Wind-Control ===
+if contains(settings.PROC.method, 'Code') && ~strcmp(settings.IONO.model, '2-Frequency-IF-LCs') && ~strcmp(settings.IONO.model, '3-Frequency-IF-LC')
+    no_sats = numel(Epoch.sats);
+    num_freq = settings.INPUT.proc_freqs;
+    
+    if num_freq >= 2
+        f = 2;
+        
+        % Read customized L5 fitted sigma from settings if available (default 1.0m optimal)
+        sigma_fitted = 1.0;
+        if isfield(settings.ADJ, 'sigma_fitted_L5')
+            sigma_fitted = settings.ADJ.sigma_fitted_L5;
+        end
+        sigma_conservative = 2.0; % baseline standard deviation
+        
+        % Get SNR values for 2nd frequency if available
+        SNR_f = [];
+        if isfield(Epoch, 'S2') && ~isempty(Epoch.S2)
+            SNR_f = Epoch.S2;
+        end
+        
+        for i = 1:no_sats
+            % Extract SNR for this satellite on 2nd frequency
+            snr_val = 35.0; % default moderate value
+            if ~isempty(SNR_f) && i <= numel(SNR_f) && ~isnan(SNR_f(i))
+                snr_val = SNR_f(i);
+            end
+            
+            % 1. Apply consFreSpe wind-control logic
+            if snr_val >= 40.0
+                % High SNR: fully trust the high-precision L5 code prior std (1.2m optimal)
+                sigma_adapted = sigma_fitted;
+            elseif snr_val <= 30.0
+                % Low SNR: degrade L5 weight to the conservative baseline (2.0m) to block outliers
+                sigma_adapted = sigma_conservative;
+            else
+                % Mid SNR: linear interpolation between sigma_fitted and sigma_conservative
+                alpha = (40.0 - snr_val) / 10.0;
+                sigma_adapted = alpha * sigma_conservative + (1.0 - alpha) * sigma_fitted;
+            end
+            
+            % 2. Scale Q and P entries for code observation of this sat on 2nd frequency
+            var_ratio = (sigma_adapted^2) / settings.ADJ.var_code;
+            
+            idx_code = (f - 1) * 2 * no_sats + 2 * i - 1;
+            if idx_code <= size(Q, 1)
+                Q(idx_code, idx_code) = Q(idx_code, idx_code) * var_ratio;
+                P(idx_code, idx_code) = P(idx_code, idx_code) / var_ratio;
+            end
+        end
+    end
+end
+
 %% save in Adjust
 Adjust.P = P; 
 Adjust.Q = Q;

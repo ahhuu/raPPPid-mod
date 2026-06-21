@@ -26,6 +26,50 @@ function [Adjust, Epoch, model, obs] = ZD_processing(Adjust, Epoch, settings, in
 
 %% ------ Float Solution -------
 
+% Calculate TDCP velocity externally as control input if enabled
+if isfield(settings.OTHER, 'use_tdcp_as_doppler') && settings.OTHER.use_tdcp_as_doppler
+        if isfield(Adjust, 'param') && ~isempty(Adjust.param)
+            pos_ref = Adjust.param(1:3);
+        else
+            pos_ref = ApproximatePosition(Epoch, input, obs, settings);
+        end
+        [V_TDCP, ~] = ApproximateVelocity(Epoch, input, obs, settings, pos_ref);
+        
+        % Adaptive Kinematics: Only apply TDCP velocity external control input after convergence
+        % (based on posterior 3D coordinate standard deviation from covariance matrix).
+        if isfield(Adjust, 'param_sigma') && ~isempty(Adjust.param_sigma) && size(Adjust.param_sigma, 1) >= 3
+            sigma_3D = sqrt(sum(diag(Adjust.param_sigma(1:3, 1:3))));
+        else
+            sigma_3D = 999.0; % Default to large uncertainty if not initialized
+        end
+        
+        % Time-domain convergence check (Epoch >= 120) since coordinate covariance (param_sigma) 
+        % is often overly pessimistic due to high multipath, preventing activation under 0.1m.
+        if Epoch.q < 120
+            Adjust.V_TDCP = [0; 0; 0];
+        else
+            % Project ECEF velocity to ENU and lock vertical velocity (Up) to 0
+            [lat_, lon_, ~] = xyz2ell(pos_ref');
+            sin_lon = sin(lon_); cos_lon = cos(lon_);
+            sin_lat = sin(lat_); cos_lat = cos(lat_);
+            R_enu2ecef = [ -sin_lon, -sin_lat*cos_lon, cos_lat*cos_lon;
+                            cos_lon, -sin_lat*sin_lon, cos_lat*sin_lon;
+                            0,        cos_lat,          sin_lat ];
+            R_ecef2enu = R_enu2ecef';
+            
+            V_enu = R_ecef2enu * V_TDCP;
+            V_enu(3) = 0; % Lock vertical velocity to 0 since receiver moves on horizontal plane
+            
+            Adjust.V_TDCP = R_enu2ecef * V_enu;
+        end
+        
+        if Epoch.q <= 10
+            fprintf('TEST: Epoch %d, sigma_3D = %.3f m, V_TDCP = [%.4f, %.4f, %.4f] m/s\n', Epoch.q, sigma_3D, V_TDCP(1), V_TDCP(2), V_TDCP(3));
+        end
+    else
+        Adjust.V_TDCP = [0; 0; 0];
+    end
+
 % preparation of parameter estimation (depending on PPP model)
 switch settings.IONO.model
     case {'Estimate with ... as constraint', 'Estimate'}

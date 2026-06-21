@@ -48,7 +48,7 @@ if any(Adjust.param(4:6) == 0) || any(Adjust.param_pred(4:6) == 0)
 end
 
 % make sure that Kalman Filter has good approximate initial parameters (e.g., huge receiver clock error)
-if ~Adjust.float && strcmp(filter_type, 'Kalman Filter') && ~settings.KINE.satellite.bool
+if ~Adjust.float && (strcmp(filter_type, 'Kalman Filter') || strcmp(filter_type, 'Kalman Filter IGGIII')) && ~settings.KINE.satellite.bool
     % prepare and perform LSQ adjustment with calc_float_solution
     LSQ_setts = settings;
     LSQ_setts.ADJ.filter.type = 'No Filter';
@@ -125,13 +125,20 @@ while it < DEF.ITERATION_MAX_NUMBER
         otherwise
             fprintf(2, '\nCheck Processing Method!\n')
     end
-    if contains(settings.PROC.method, ' + Doppler')
+    % Skip adding Doppler measurement equation to filter if using TDCP as external control input
+    if contains(settings.PROC.method, ' + Doppler') && ~(isfield(settings.OTHER, 'use_tdcp_as_doppler') && settings.OTHER.use_tdcp_as_doppler)
         [A, omc] = DSM_add_Doppler(A, omc, Adjust, Epoch, model, settings);
     end
     Adjust.A = A; Adjust.omc = omc;
         
     % --- create covariance matrix of observations
+    % Temporary override method to match A dimension in covariance matrix calculation when using external TDCP control input
+    orig_method = settings.PROC.method;
+    if isfield(settings.OTHER, 'use_tdcp_as_doppler') && settings.OTHER.use_tdcp_as_doppler
+        settings.PROC.method = 'Code + Phase';
+    end
     Adjust = createObsCovariance(Adjust, Epoch, settings, model.el, model.bore);
+    settings.PROC.method = orig_method;
     
     % --- check if too many observations have been excluded because of e.g. 
     % elevation cutoff, check_omc, missing broadcast corrections...
@@ -171,6 +178,12 @@ while it < DEF.ITERATION_MAX_NUMBER
             [Adjust.res, Adjust.res_doppler] = calc_res(settings, input, Epoch, model, Adjust, obs);
             break;              % no inner-epoch iteration
             
+        case 'Kalman Filter IGGIII'
+            [Adjust.param, Adjust.param_sigma, Adjust.float, Adjust.omc, Adjust.A, Adjust.Q] = ...
+                KalmanFilterIGGIII(Adjust.omc, Adjust.A, Adjust.param_pred, Adjust.param_sigma_pred, Adjust.Q, settings);
+            [Adjust.res, Adjust.res_doppler] = calc_res(settings, input, Epoch, model, Adjust, obs);
+            break;              % no inner-epoch iteration
+            
         case 'No Filter'      			% perform single-epoch Standard-LSQ-Adjustment
             dx = adjustment(Adjust);
             if norm(dx.x(1:3)) < DEF.ITERATION_THRESHOLD      % Norm of change in coordinates smaller than e-3 m
@@ -189,7 +202,7 @@ end             % end of iteration of current epoch
 
 %% Handle results
 % check if solution converged in current epoch
-if ~strcmp(filter_type, 'Kalman Filter') && norm(dx.x(1:3)) >= DEF.ITERATION_THRESHOLD
+if ~strcmp(filter_type, 'Kalman Filter') && ~strcmp(filter_type, 'Kalman Filter IGGIII') && norm(dx.x(1:3)) >= DEF.ITERATION_THRESHOLD
     if bool_print
         fprintf('\tSolution did not converge in this epoch!!!                 \n')
     end

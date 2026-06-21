@@ -275,6 +275,22 @@ settings.OTHER.CS.D_threshold = str2double(get(handles.edit_CycleSlip_Doppler_th
 settings.OTHER.CS.TimeDifference = get(handles.checkbox_cs_td, 'Value');
 settings.OTHER.CS.TD_threshold = str2double(get(handles.edit_cs_td_thresh, 'String'));
 settings.OTHER.CS.TD_degree = str2double(get(handles.edit_cs_td_degree, 'String'));
+% cycle-slip detector TDCP
+try     % read checkbox (en/disable TDCP)
+    settings.OTHER.CS.cs_tdcp = get(handles.checkbox_cs_tdcp, 'Value');
+catch
+    settings.OTHER.CS.cs_tdcp = 0;
+end
+try     % read TDCP threshold
+    settings.OTHER.CS.TDCP_threshold = str2double(get(handles.edit_cs_tdcp_thresh, 'String'));
+catch
+    settings.OTHER.CS.TDCP_threshold = 0.05;
+end
+try     % read TDCP sigma0
+    settings.OTHER.CS.TDCP_sigma0 = str2double(get(handles.edit_cs_tdcp_sigma0, 'String'));
+catch
+    settings.OTHER.CS.TDCP_sigma0 = 0.03;
+end
 % cycle-slip detector HMW LC
 settings.OTHER.CS.HMW = get(handles.checkbox_cs_HMW, 'Value');
 settings.OTHER.CS.HMW_threshold = str2double(get(handles.edit_cs_HMW_thresh, 'String'));
@@ -419,7 +435,12 @@ settings.ADJ.filter.dynmodel_coord = get(handles.popupmenu_filter_coord_dynmodel
 
 % Velocity
 settings.ADJ.filter.var_velocity  = str2double( get(handles.edit_filter_velocity_sigma0, 'String') )^2;	% a-priori-variance of coordinates
-settings.ADJ.filter.Q_velocity   = str2double( get(handles.edit_filter_velocity_Q, 'String') )^2;        % system noise of coordinates
+% Read velocity system noise (can be scalar or vector [Q_east, Q_north, Q_up] for anisotropic noise)
+vel_Q_val = str2num(get(handles.edit_filter_velocity_Q, 'String'));
+if isempty(vel_Q_val)
+    vel_Q_val = 0.05;
+end
+settings.ADJ.filter.Q_velocity = vel_Q_val.^2;
 settings.ADJ.filter.dynmodel_velocity = get(handles.popupmenu_filter_velocity_dynmodel, 'Value') - 1;    % dynamic model of coordinates
 
 % Zenith Wet Delay
@@ -494,8 +515,22 @@ settings.ADJ.elev_weight_fun = ...  % get elevation function string and convert 
     ElevationWeightingFunction(get(handles.edit_elevation_weighting_function, 'String'));
 settings.ADJ.weight_mplc  	 = get(handles.radiobutton_MPLC_Dependency, 'Value');
 settings.ADJ.weight_sign_str = get(handles.radiobutton_Signal_Strength_Dependency, 'Value');
+try
+    settings.ADJ.weight_snr_elev = get(handles.radiobutton_SNR_Elevation_Dependency, 'Value');
+catch
+    settings.ADJ.weight_snr_elev = 0;
+end
 settings.ADJ.snr_weight_fun = ...  % get snr function string and convert to function handle
     SNRWeightingFunction(get(handles.edit_snr_weighting_function, 'String'));
+if settings.ADJ.weight_snr_elev
+    try
+        settings.ADJ.snr_elev_weight_fun = SNR_ElevationWeightingFunction(get(handles.edit_snr_elev_weighting_function, 'String'));
+    catch
+        settings.ADJ.snr_elev_weight_fun = @(SNR, e) 1;
+    end
+else
+    settings.ADJ.snr_elev_weight_fun = @(SNR, e) 1;  % default non-influential function
+end
 settings.ADJ.weight_bore     = get(handles.radiobutton_Bore_Dependency, 'Value');
 settings.ADJ.weight_none     = get(handles.radiobutton_No_Dependency, 'Value');
 
@@ -614,6 +649,11 @@ settings.EXP.tropo_est      = handles.checkbox_exp_tropo_zpd.Value;
 settings.EXP.nmea           = handles.checkbox_exp_nmea.Value;
 settings.EXP.kml            = handles.checkbox_exp_kml.Value;
 settings.EXP.sp3            = handles.checkbox_exp_sp3.Value;
+try
+    settings.EXP.residuals_output = handles.checkbox_exp_residuals.Value;
+catch
+    settings.EXP.residuals_output = 0;
+end
 % Variable obs
 settings.EXP.obs_bias        = handles.checkbox_exp_obs_bias.Value;
 settings.EXP.obs_epochheader = handles.checkbox_exp_obs_epochheader.Value;

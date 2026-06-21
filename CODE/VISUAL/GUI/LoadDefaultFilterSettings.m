@@ -100,7 +100,7 @@ if strcmp(filter_type, 'Kalman Filter Iterative')
     end
     handles.popupmenu_filter_iono_dynmodel.Value = F.KFI_iono_model + 1;
     
-elseif strcmp(filter_type, 'Kalman Filter')
+elseif strcmp(filter_type, 'Kalman Filter') || strcmp(filter_type, 'Kalman Filter IGGIII')
     % filter's direction
     handles.popupmenu_filter_direction.Value = 1;  % 'Forwards'
     

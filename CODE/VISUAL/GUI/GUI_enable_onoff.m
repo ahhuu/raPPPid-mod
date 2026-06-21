@@ -549,6 +549,9 @@ if strcmpi(handles.uipanel_otherCorrections.Visible, 'on')
     handles.edit_cs_HMW_thresh.Enable = onoff;
     handles.text_cs_HMW_factor.Enable = onoff;
     handles.edit_cs_HMW_factor.Enable = onoff;
+    handles.checkbox_cs_tdcp.Enable = onoff;        % TDCP
+    handles.edit_cs_tdcp_thresh.Enable = onoff;
+    handles.edit_cs_tdcp_sigma0.Enable = onoff;
     handles.checkbox_LLI.Enable = onoff;            % LLI
     
 

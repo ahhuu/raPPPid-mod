@@ -22,6 +22,91 @@ sats = Epoch.sats;
 f1 = Epoch.f1;   	f2 = Epoch.f2;      f3 = Epoch.f3;
 lam1 = Epoch.l1;    lam2 = Epoch.l2;    lam3 = Epoch.l3;
 
+% --- Generate TDCP-derived pseudo-Doppler if enabled ---
+if isfield(settings.OTHER, 'use_tdcp_as_doppler') && settings.OTHER.use_tdcp_as_doppler
+    if ~isempty(Epoch.old) && ~isempty(Epoch.old.sats)
+        dt = Epoch.gps_time - Epoch.old.gps_time;
+        if dt > 0 && dt < 10
+            [~, idx_curr, idx_old] = intersect(Epoch.sats, Epoch.old.sats);
+            
+            % Detect receiver clock jump / steering (e.g. 3.54 us jump causing ~1060 m/s Doppler spike)
+            is_clk_jump = false;
+            if isfield(Epoch, 'D1') && ~isempty(Epoch.D1) && isfield(Epoch, 'L1') && ~isempty(Epoch.L1) && isfield(Epoch.old, 'L1') && ~isempty(Epoch.old.L1)
+                l1_c = Epoch.L1(idx_curr);
+                l1_o = Epoch.old.L1(idx_old);
+                d1_r = Epoch.D1(idx_curr);
+                no_cs = ~Epoch.cs_found(idx_curr, 1);
+                vld = ~isnan(l1_c) & ~isnan(l1_o) & ~isnan(d1_r);
+                if sum(vld) >= 3
+                    tdcp_check = -(l1_c(vld) - l1_o(vld)) / dt;
+                    med_diff = median(tdcp_check - d1_r(vld));
+                    fprintf('DEBUG: Epoch %d (GPS SOW %.1f): Sat Count = %d, med_diff = %.3f m/s\n', ...
+                        q, Epoch.gps_time, sum(vld), med_diff);
+                    if abs(med_diff) > 50.0  % Threshold of 50 m/s to reliably identify clock steering
+                        is_clk_jump = true;
+                        fprintf('  Clock steering detected! Reverting to raw Doppler.\n');
+                    end
+                else
+                    fprintf('DEBUG: Epoch %d (GPS SOW %.1f): Sat Count = %d (insufficient for clock steering check)\n', ...
+                        q, Epoch.gps_time, sum(vld));
+                end
+            end
+            
+            % For D1
+            if ~is_clk_jump && isfield(Epoch, 'D1') && ~isempty(Epoch.D1) && isfield(Epoch, 'L1') && ~isempty(Epoch.L1) && isfield(Epoch.old, 'L1') && ~isempty(Epoch.old.L1)
+                l1_curr = Epoch.L1(idx_curr);
+                l1_old = Epoch.old.L1(idx_old);
+                no_cs = ~Epoch.cs_found(idx_curr, 1);
+                valid = ~isnan(l1_curr) & ~isnan(l1_old) & no_cs;
+                
+                d1_tdcp = NaN(size(Epoch.D1));
+                d1_tdcp(idx_curr(valid)) = -(l1_curr(valid) - l1_old(valid)) / dt;
+                
+                invalid = isnan(d1_tdcp);
+                d1_tdcp(invalid) = Epoch.D1(invalid);
+                Epoch.D1 = d1_tdcp;
+            end
+            
+            % For D2
+            if ~is_clk_jump && isfield(Epoch, 'D2') && ~isempty(Epoch.D2) && isfield(Epoch, 'L2') && ~isempty(Epoch.L2) && isfield(Epoch.old, 'L2') && ~isempty(Epoch.old.L2)
+                l2_curr = Epoch.L2(idx_curr);
+                l2_old = Epoch.old.L2(idx_old);
+                if size(Epoch.cs_found, 2) >= 2
+                    no_cs = ~Epoch.cs_found(idx_curr, 2);
+                else
+                    no_cs = true(size(idx_curr));
+                end
+                valid = ~isnan(l2_curr) & ~isnan(l2_old) & no_cs;
+                
+                d2_tdcp = NaN(size(Epoch.D2));
+                d2_tdcp(idx_curr(valid)) = -(l2_curr(valid) - l2_old(valid)) / dt;
+                
+                invalid = isnan(d2_tdcp);
+                d2_tdcp(invalid) = Epoch.D2(invalid);
+                Epoch.D2 = d2_tdcp;
+            end
+            
+            % For D3
+            if ~is_clk_jump && isfield(Epoch, 'D3') && ~isempty(Epoch.D3) && isfield(Epoch, 'L3') && ~isempty(Epoch.L3) && isfield(Epoch.old, 'L3') && ~isempty(Epoch.old.L3)
+                l3_curr = Epoch.L3(idx_curr);
+                l3_old = Epoch.old.L3(idx_old);
+                if size(Epoch.cs_found, 2) >= 3
+                    no_cs = ~Epoch.cs_found(idx_curr, 3);
+                else
+                    no_cs = true(size(idx_curr));
+                end
+                valid = ~isnan(l3_curr) & ~isnan(l3_old) & no_cs;
+                
+                d3_tdcp = NaN(size(Epoch.D3));
+                d3_tdcp(idx_curr(valid)) = -(l3_curr(valid) - l3_old(valid)) / dt;
+                
+                invalid = isnan(d3_tdcp);
+                d3_tdcp(invalid) = Epoch.D3(invalid);
+                Epoch.D3 = d3_tdcp;
+            end
+        end
+    end
+end
 
 %% --- Build observation vectors ---
 if strcmpi(settings.IONO.model,'2-Frequency-IF-LCs')

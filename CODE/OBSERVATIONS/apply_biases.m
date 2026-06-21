@@ -22,7 +22,7 @@ bool_sats(Epoch.sats) = true;  	% elements == prns are true
 
 
 %% determine coefficients for the biases
-k_vec_1 = zeros(1,410);     k_vec_2 = zeros(1,410);
+k_vec_2 = zeros(1,410);
 % ||| check this condition for e.g. TUG Products and IF-LC
 % convert observations to IF-LC of precise products
 if settings.ORBCLK.bool_precise && ...
@@ -32,7 +32,6 @@ if settings.ORBCLK.bool_precise && ...
     % following [21]: (14), but in raPPPid everything is converted to and 
     % then from the 1st frequency, therefore actually only one coefficient 
     % is needed and this works for 3+ frequencies
-     k_vec_1(Epoch.sats) = Epoch.f1.^2 ./ (Epoch.f1.^2 - Epoch.f2.^2);       % e.g., 2.5457 for GPS L1+L2, 2.2606 for GAL E1+E5a
      k_vec_2(Epoch.sats) = Epoch.f2.^2 ./ (Epoch.f1.^2 - Epoch.f2.^2);       % e.g., 1.5457 for GPS L1+L2, 1.2606 for GAL E1+E5a
 
 end
@@ -85,11 +84,17 @@ valid_start = start(:,bool_sats,:) <= sow & week_start(:,bool_sats,:) <= week;
 % all SINEX biases ending validity after current point in time
 valid_ende  = ende(:,bool_sats,:)  >  sow | week_ende(:,bool_sats,:) > week;   	
 take = valid_start & valid_ende;    % correct bias has valid start and valid end
-valid = logical(sum(take,1));    	% convert do boolean vector
 
-% ||| the following line fails if at a specific point in time two different
-% bias corrections are valid (error in the bias file...)
-bias_epoch(valid) = bias_obs(take);             % take biases only for satellites which have valid ones
+% pick the first valid bias entry for each satellite and bias component
+% (some bias products can contain overlapping entries for the same satellite)
+for sat_idx = 1:size(bias_epoch, 2)
+    for comp_idx = 1:size(bias_epoch, 3)
+        row_idx = find(take(:, sat_idx, comp_idx), 1, 'first');
+        if ~isempty(row_idx)
+            bias_epoch(1, sat_idx, comp_idx) = bias_obs(row_idx, sat_idx, comp_idx);
+        end
+    end
+end
 
 % apply coefficient to convert from C1W to IF-LC-C1W-C2W if necessary:
 % therefore the third dimension of the biases is used where the DSB between

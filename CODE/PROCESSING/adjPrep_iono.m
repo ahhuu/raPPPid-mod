@@ -142,6 +142,33 @@ if bool_filter
 
     % ----- Noise Matrix -----
     Noise = Adjust.Noise_0;
+    
+    % Project anisotropic ENU process noise to ECEF XYZ coordinates to restrict vertical divergence
+    if FILTER.dynmodel_coord == 2
+        [lat_, lon_, ~] = xyz2ell(Adjust.param(1:3)');
+        sin_lon = sin(lon_); cos_lon = cos(lon_);
+        sin_lat = sin(lat_); cos_lat = cos(lat_);
+        R_enu2ecef = [ -sin_lon, -sin_lat*cos_lon, cos_lat*cos_lon;
+                        cos_lon, -sin_lat*sin_lon, cos_lat*sin_lon;
+                        0,        cos_lat,          sin_lat ];
+        
+        % Anisotropic position and velocity process noise (Horizontal is dynamic, Vertical is constrained)
+        Q_enu_coord = diag([FILTER.Q_coord, FILTER.Q_coord, 0.05^2]); 
+        Q_xyz_coord = R_enu2ecef * Q_enu_coord * R_enu2ecef';
+        
+        Q_vel_east = FILTER.Q_velocity;
+        if isfield(FILTER, 'Q_velocity_north')
+            Q_vel_north = FILTER.Q_velocity_north;
+        else
+            Q_vel_north = FILTER.Q_velocity;
+        end
+        Q_enu_vel = diag([Q_vel_east, Q_vel_north, 1e-12]); 
+        Q_xyz_vel = R_enu2ecef * Q_enu_vel * R_enu2ecef';
+        
+        Noise(1:3,1:3) = Q_xyz_coord;
+        Noise(4:6,4:6) = Q_xyz_vel;
+    end
+
     % add noise of float ambiguities
     if bool_code_phase
         Noise(N_idx,N_idx) = N_eye * FILTER.Q_amb;
@@ -184,11 +211,47 @@ if bool_filter
     
     % ----- predict parameter vector -----
     Adjust.param_pred = Transition * Adjust.param;
+    if isfield(Adjust, 'V_TDCP') && ~isempty(Adjust.V_TDCP)
+        % Apply TDCP velocity as control input to position prediction: X_j = X_{j-1} + V * dt
+        Adjust.param_pred(1:3) = Adjust.param(1:3) + dt * Adjust.V_TDCP;
+    end
     
     
     % ----- predict covariance matrix of parameters -----
     % cf. [00]: p.31, (2.39) or [01]: p.247, (7.122)
     Adjust.param_sigma_pred = Transition * Adjust.param_sigma * Transition' + Noise;
+    if isfield(Adjust, 'V_TDCP') && ~isempty(Adjust.V_TDCP) && norm(Adjust.V_TDCP) > 0
+        % Add anisotropic TDCP velocity uncertainty to position process noise
+        % East is stable (~0.01m/s), North is noisy (~0.05m/s), Up is locked (0.0m/s)
+        [lat_, lon_, ~] = xyz2ell(Adjust.param(1:3)');
+        sin_lon = sin(lon_); cos_lon = cos(lon_);
+        sin_lat = sin(lat_); cos_lat = cos(lat_);
+        R_enu2ecef = [ -sin_lon, -sin_lat*cos_lon, cos_lat*cos_lon;
+                        cos_lon, -sin_lat*sin_lon, cos_lat*sin_lon;
+                        0,        cos_lat,          sin_lat ];
+        
+        % Use dynamic anisotropic noise from settings if available
+        q_east = 0.01;
+        q_north = 0.05;
+        q_up = 0.00;
+        if isfield(settings, 'ADJ') && isfield(settings.ADJ, 'filter') && isfield(settings.ADJ.filter, 'Q_velocity')
+            Q_vel = sqrt(settings.ADJ.filter.Q_velocity);
+            if length(Q_vel) == 3
+                q_east = Q_vel(1);
+                q_north = Q_vel(2);
+                q_up = Q_vel(3);
+            elseif length(Q_vel) == 1
+                q_north = Q_vel; % if scalar, map to north
+            end
+        end
+        % Or override if specifically defined in settings.OTHER.tdcp_q_north
+        if isfield(settings, 'OTHER') && isfield(settings.OTHER, 'tdcp_q_north')
+            q_north = settings.OTHER.tdcp_q_north;
+        end
+        Q_enu_tdcp = diag([(dt * q_east)^2, (dt * q_north)^2, (dt * q_up)^2]);
+        Q_xyz_tdcp = R_enu2ecef * Q_enu_tdcp * R_enu2ecef';
+        Adjust.param_sigma_pred(1:3,1:3) = Adjust.param_sigma_pred(1:3,1:3) + Q_xyz_tdcp;
+    end
     Adjust.P_pred = inv(Adjust.param_sigma_pred);	% cholinv was used before
 end
 

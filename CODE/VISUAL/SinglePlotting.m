@@ -404,6 +404,18 @@ if settings.PLOT.cs && bool_phase
     else
         fprintf('Cycle-Slip-Detection with HMW LC disabled.          \n')
     end
+    % TDCP
+    if isfield(settings.OTHER.CS, 'cs_tdcp') && settings.OTHER.CS.cs_tdcp
+        TDCP_th = settings.OTHER.CS.TDCP_threshold;
+        TDCP_s0 = settings.OTHER.CS.TDCP_sigma0;
+        if isGPS; vis_cs_TDCP(storeData, 'G', TDCP_th, TDCP_s0); end
+        if isGLO; vis_cs_TDCP(storeData, 'R', TDCP_th, TDCP_s0); end
+        if isGAL; vis_cs_TDCP(storeData, 'E', TDCP_th, TDCP_s0); end
+        if isBDS; vis_cs_TDCP(storeData, 'C', TDCP_th, TDCP_s0); end
+        if isQZSS;vis_cs_TDCP(storeData, 'J', TDCP_th, TDCP_s0); end
+    else
+        fprintf('Cycle-Slip-Detection with TDCP disabled.          \n')
+    end
 end
 if STOP_CALC; return; end
 

@@ -93,6 +93,16 @@ Epoch.cs_dL2dL3 = [];
 Epoch.cs_pred_SF = NaN(410,1);
 Epoch.cs_HMW = [];                  % HMW LC
 Epoch.cs_L1_diff = [];
+% TDCP variables
+Epoch.TDCP_v = [];
+Epoch.TDCP_sigma0 = [];
+Epoch.TDCP_v_freq = [];
+Epoch.TDCP_sigma0_freq = [];
+Epoch.TDCP_median_omc_freq = [];
+Epoch.TDCP_clock_term_freq = [];
+Epoch.TDCP_n_sats_freq = [];
+Epoch.TDCP_stats = [];
+Epoch.cs_found_TDCP = [];
 % satellite status
 Epoch.sat_status = [];
 % multipath detection

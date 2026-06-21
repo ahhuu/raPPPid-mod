@@ -40,9 +40,9 @@ bool_doppler = contains(settings.PROC.method,'+ Doppler');      % true if phase 
 %% satellite variables
 satellites.obs(q,prns)  = Epoch.tracked(prns);  	% save number of epochs satellite is tracked
 satellites.elev(q,prns) = model.el(:,1);	% save elevation of satellites
-satellites.az  (q,prns) = model.az(:,1); 	% save azimuth [°] of satellites
+satellites.az  (q,prns) = model.az(:,1); 	% save azimuth [ï¿½] of satellites
 if settings.KINE.satellite.bool
-	satellites.bore(q,prns) = model.bore(:,1); 	    % save boresight angle [°] of satellites
+	satellites.bore(q,prns) = model.bore(:,1); 	    % save boresight angle [ï¿½] of satellites
 end
 
 % Save Carrier-to-Noise density
@@ -83,14 +83,22 @@ if bool_phase
     % residuals from adjustment
     code_rows = 1:2:2*s_f;
 	phase_rows = 2:2:2*s_f;
-    doppler_rows = 2*s_f+1:numel(Adjust.res);
+    if bool_doppler
+        temp_doppler = Adjust.res_doppler;
+        if isempty(temp_doppler)
+            temp_doppler = Adjust.res(2*s_f+1:end);
+        end
+    end
     if strcmp(settings.IONO.model, 'GRAPHIC')
         storeData.residuals_code_1(q,prns) = Adjust.res(1:s_f);
-        if bool_doppler; storeData.residuals_doppler_1(q,prns) = Adjust.res(s_f+1:end); end
+        if bool_doppler
+            temp_doppler_res = reshape(temp_doppler, 1, no_sats, []);
+            storeData.residuals_doppler_1(q,prns) = temp_doppler_res(:,:,1);
+        end
     else
         temp_code_res    = reshape(Adjust.res(code_rows),    1, no_sats, proc_frqs);
         temp_phase_res   = reshape(Adjust.res(phase_rows),   1, no_sats, proc_frqs);
-        if bool_doppler; temp_doppler_res = reshape(Adjust.res(doppler_rows), 1, no_sats, proc_frqs); end
+        if bool_doppler; temp_doppler_res = reshape(temp_doppler, 1, no_sats, []); end
         storeData.residuals_code_1(q,prns) = temp_code_res(:,:,1);
         storeData.residuals_phase_1(q,prns) = temp_phase_res(:,:,1);
         if bool_doppler; storeData.residuals_doppler_1(q,prns) = temp_doppler_res(:,:,1); end
@@ -98,12 +106,12 @@ if bool_phase
     if proc_frqs > 1
         storeData.residuals_code_2(q,prns) = temp_code_res(:,:,2);
         storeData.residuals_phase_2(q,prns) = temp_phase_res(:,:,2);
-        if bool_doppler; storeData.residuals_doppler_2(q,prns) = temp_doppler_res(:,:,2); end
+        if bool_doppler && size(temp_doppler_res,3) >= 2; storeData.residuals_doppler_2(q,prns) = temp_doppler_res(:,:,2); end
     end
     if proc_frqs > 2
         storeData.residuals_code_3(q,prns) = temp_code_res(:,:,3);
         storeData.residuals_phase_3(q,prns) = temp_phase_res(:,:,3);
-        if bool_doppler; storeData.residuals_doppler_3(q,prns) = temp_doppler_res(:,:,3); end
+        if bool_doppler && size(temp_doppler_res,3) >= 3; storeData.residuals_doppler_3(q,prns) = temp_doppler_res(:,:,3); end
     end
     if settings.AMBFIX.bool_AMBFIX && Adjust.fixed
         % residuals from fixed solution
@@ -124,10 +132,14 @@ else        % code only processing
     if proc_frqs > 1; storeData.residuals_code_2(q,prns) = temp_res_code(:,:,2); end
     if proc_frqs > 2; storeData.residuals_code_3(q,prns) = temp_res_code(:,:,3); end
     if bool_doppler
-        temp_res_doppler = reshape(Adjust.res(s_f+1:end), 1, no_sats, proc_frqs);
+        temp_res_doppler = Adjust.res_doppler;
+        if isempty(temp_res_doppler)
+            temp_res_doppler = Adjust.res(s_f+1:end);
+        end
+        temp_res_doppler = reshape(temp_res_doppler, 1, no_sats, []);
         storeData.residuals_doppler_1(q,prns) = temp_res_doppler(:,:,1);
-        if proc_frqs > 1; storeData.residuals_doppler_2(q,prns) = temp_res_doppler(:,:,2); end
-        if proc_frqs > 2; storeData.residuals_doppler_3(q,prns) = temp_res_doppler(:,:,3); end
+        if size(temp_res_doppler,3) >= 2; storeData.residuals_doppler_2(q,prns) = temp_res_doppler(:,:,2); end
+        if size(temp_res_doppler,3) >= 3; storeData.residuals_doppler_3(q,prns) = temp_res_doppler(:,:,3); end
     end
 end
 
@@ -201,6 +213,16 @@ end
 if settings.OTHER.CS.TimeDifference     % time difference
     storeData.cs_L1_diff(q,prns) = Epoch.cs_L1_diff;
 end
+if isfield(settings.OTHER.CS,'cs_tdcp') && settings.OTHER.CS.cs_tdcp && bool_phase && isfield(Epoch,'TDCP_v') && ~isempty(Epoch.TDCP_v)
+    storeData.cs_tdcp_v(q,prns) = Epoch.TDCP_v;
+    storeData.cs_tdcp_sigma0(q) = Epoch.TDCP_sigma0;
+    storeData.cs_tdcp_v_freq(q,prns,:) = Epoch.TDCP_v_freq;
+    storeData.cs_tdcp_sigma0_freq(q,:) = Epoch.TDCP_sigma0_freq;
+    storeData.cs_tdcp_median_omc_freq(q,:) = Epoch.TDCP_median_omc_freq;
+    storeData.cs_tdcp_n_sats_freq(q,:) = Epoch.TDCP_n_sats_freq;
+    storeData.cs_tdcp_clock_term_freq(q,:) = Epoch.TDCP_clock_term_freq;
+    storeData.cs_tdcp_freq_used(q) = Epoch.TDCP_stats.freq_used;
+end
 if settings.OTHER.CS.HMW && bool_phase && ~isempty(Epoch.old.cs_HMW)
     % calculate difference between average and current value of WL
     % ambiguity and save (WL ambiguity difference and variance)
@@ -255,7 +277,7 @@ if settings.AMBFIX.bool_AMBFIX
         storeData.N3_fixed(q,prns) = Adjust.N3_fixed;     % fixed ambiguity 3rd frequency
         storeData.iono_fixed(q,prns) = Adjust.iono_fix;   % fixed ionospheric delay estimation
     end
-    % save Hatch-Melbourne-Wübbena LCs
+    % save Hatch-Melbourne-Wï¿½bbena LCs
     storeData.HMW_12(q,prns) = Adjust.HMW_12(q,prns);
     if proc_frqs >= 2
         storeData.HMW_23(q,prns) = Adjust.HMW_23(q,prns);

@@ -62,6 +62,17 @@ end
 %  insert approximate velocity (X,Y,Z) and receiver clock drift
 if settings.KINE.bool_kinematic && bool_doppler
     [param_vec(4:6), param_vec(23)] = ApproximateVelocity(Epoch, input, obs, settings, param_vec(1:3));
+    
+    % Force initial vertical speed to 0 in ENU
+    [lat_, lon_, ~] = xyz2ell(param_vec(1:3)');
+    sin_lon = sin(lon_); cos_lon = cos(lon_);
+    sin_lat = sin(lat_); cos_lat = cos(lat_);
+    R_enu2ecef = [ -sin_lon, -sin_lat*cos_lon, cos_lat*cos_lon;
+                    cos_lon, -sin_lat*sin_lon, cos_lat*sin_lon;
+                    0,        cos_lat,          sin_lat ];
+    v_enu = R_enu2ecef' * param_vec(4:6);
+    v_enu(3) = 0; 
+    param_vec(4:6) = R_enu2ecef * v_enu;
 end
 % other parameters don´t have/need approximate values so they stay zero
 param_pred = param_vec;         % no prediction in first epoch
@@ -74,7 +85,20 @@ param_sigma = eye(NO_PARAM + no_ambig + no_sats);       % initialize
 % build matrix with a priori variances of parameters (from GUI):
 param_sigma(1:3,1:3)    = eye(3)*FILTER.var_coord;      % position
 if settings.KINE.bool_kinematic
-    param_sigma(1:3,1:3)    = eye(3)*FILTER.var_velocity; 	% velocity
+    [lat_, lon_, ~] = xyz2ell(param_vec(1:3)');
+    sin_lon = sin(lon_); cos_lon = cos(lon_);
+    sin_lat = sin(lat_); cos_lat = cos(lat_);
+    R_enu2ecef = [ -sin_lon, -sin_lat*cos_lon, cos_lat*cos_lon;
+                    cos_lon, -sin_lat*sin_lon, cos_lat*sin_lon;
+                    0,        cos_lat,          sin_lat ];
+    var_vel_east = FILTER.var_velocity;
+    if isfield(FILTER, 'var_velocity_north')
+        var_vel_north = FILTER.var_velocity_north;
+    else
+        var_vel_north = FILTER.var_velocity;
+    end
+    Q_enu_init_vel = diag([var_vel_east, var_vel_north, 1e-12]); 
+    param_sigma(4:6,4:6) = R_enu2ecef * Q_enu_init_vel * R_enu2ecef';
 end
 param_sigma(7,7)        = FILTER.var_zwd;               % zenith wet delay
 if GPS_ON

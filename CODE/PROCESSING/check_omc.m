@@ -148,6 +148,9 @@ if bool_phase
     % - are cycle-slip free
     % - have ionospheric delay estimation
     outlier_p = (omc_phase_ > thresh_p) & ~exclude & bool_N & ~cs_found & bool_iono;
+    if strcmp(settings.ADJ.filter.type, 'Kalman Filter IGGIII')
+        outlier_p = false(size(outlier_p)); % Let KalmanFilterIGGIII handle robust phase weighting
+    end
     cs_found(outlier_p) = true;
     
     % print detected outliers

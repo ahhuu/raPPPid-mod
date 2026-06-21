@@ -1,0 +1,96 @@
+function [funhandle] = SNR_ElevationWeightingFunction(funstring)
+% Convert combined SNR and elevation weighting string to function handle
+% 
+% INPUT:
+%   funstring           string, function for combined SNR and elevation weighting
+% OUTPUT:
+%   funhandle           function handle, converted from the input string
+%
+% This function belongs to raPPPid, Copyright (c) 2023, M.F. Glaner
+% *************************************************************************
+
+% check if somehow already processed (struct, handle, or cell)
+if isstruct(funstring) || isa(funstring,'function_handle') || iscell(funstring)
+    funhandle = funstring;
+    return
+end
+
+% Split by semicolon to support frequency-specific and system-specific weighting
+parts = strsplit(funstring, ';');
+num_parts = numel(parts);
+
+% Initialize result structure
+S = struct();
+last_sys = 'default';
+has_system_prefix = false;
+
+for i = 1:num_parts
+    current_str = strtrim(parts{i});
+    
+    % Check for system prefix (e.g., "GPS:", "G:", "GAL:")
+    if contains(current_str, ':')
+        tokens = strsplit(current_str, ':');
+        prefix = upper(strtrim(tokens{1}));
+        current_str = strtrim(strjoin(tokens(2:end), ':'));
+        
+        switch prefix
+            case {'GPS', 'G'}
+                last_sys = 'GPS';
+            case {'GLO', 'R'}
+                last_sys = 'GLO';
+            case {'GAL', 'E'}
+                last_sys = 'GAL';
+            case {'BDS', 'C'}
+                last_sys = 'BDS';
+            case {'QZSS', 'J'}
+                last_sys = 'QZSS';
+            otherwise
+                last_sys = prefix;
+        end
+        has_system_prefix = true;
+    end
+    
+    if isempty(current_str)
+        continue;
+    end
+    
+    contains_snr = contains(lower(current_str), 'snr');
+    contains_e   = contains(lower(current_str), ' e') || contains(lower(current_str), 'e)') || contains(lower(current_str), 'e ');
+    if ~contains_snr || ~contains_e
+        error('Combined function must contain both "SNR" and "e".');
+    end
+    
+    if ~strncmp(current_str, '@(SNR, e)', 10) && ~strncmp(current_str, '@(snr, e)', 10)
+        if strncmp(current_str, '@(', 2)
+            current_str = ['@(SNR, e)' strrep(current_str, '@(', '')];
+        else
+            current_str = ['@(SNR, e)' current_str];
+        end
+    end
+    
+    h = str2func(current_str);
+    try
+        h(30, pi/4);
+    catch ME
+        error('Function "%s" is invalid: %s', current_str, ME.message);
+    end
+    
+    if ~isfield(S, last_sys)
+        S.(last_sys) = {h};
+    else
+        S.(last_sys){end+1} = h;
+    end
+end
+
+fields = fieldnames(S);
+if ~has_system_prefix && numel(fields) == 1 && strcmp(fields{1}, 'default')
+    if numel(S.default) == 1
+        funhandle = S.default{1};
+    else
+        funhandle = S.default;
+    end
+else
+    funhandle = S;
+end
+
+end

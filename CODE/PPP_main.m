@@ -273,8 +273,14 @@ for q = q_range         % loop over epochs
     [Epoch] = check_SNR(Epoch, settings, obs.use_column);
         
     % --- perform Cycle-Slip detection ---
-    if contains(settings.PROC.method,'Phase')   &&   (settings.OTHER.CS.l1c1 || settings.OTHER.CS.DF || settings.OTHER.CS.Doppler || settings.OTHER.CS.TimeDifference || settings.PROC.LLI)
-        [Epoch] = cycleSlip(Epoch, settings, obs.use_column);
+    if contains(settings.PROC.method,'Phase')   &&   (settings.OTHER.CS.l1c1 || settings.OTHER.CS.DF || settings.OTHER.CS.Doppler || settings.OTHER.CS.TimeDifference || (isfield(settings.OTHER.CS,'cs_tdcp') && settings.OTHER.CS.cs_tdcp) || settings.PROC.LLI)
+        last_pos = [];
+        if isfield(Adjust, 'param') && numel(Adjust.param) >= 3
+            last_pos = Adjust.param(1:3);
+        elseif isfield(settings.INPUT, 'pos_approx') && ~isempty(settings.INPUT.pos_approx)
+            last_pos = settings.INPUT.pos_approx(:);
+        end
+        [Epoch] = cycleSlip(Epoch, settings, obs.use_column, input, last_pos, obs);
     end
     
     % --- perform receiver clock jump detection ---
@@ -397,12 +403,36 @@ storeData.fixed_reset_epochs = Adjust.fixed_reset_epochs;
 if settings.EXP.settings_summary
     settings2txt(settings, obs, input, input.OTHER.PCO.rec_error, input.OTHER.PCV.rec_error, tStart);
 end
+if settings.EXP.settings_summary || (isfield(settings.EXP, 'residuals_output') && settings.EXP.residuals_output)
+    if settings.ADJ.weight_mplc
+        weight_summary = 'Multipath-LC';
+    elseif settings.ADJ.weight_elev
+        weight_summary = ['Elevation, function: ' weightSetting2Str(settings.ADJ.elev_weight_fun)];
+    elseif settings.ADJ.weight_sign_str
+        weight_summary = ['C/N0, function: ' weightSetting2Str(settings.ADJ.snr_weight_fun)];
+    elseif settings.ADJ.weight_snr_elev
+        weight_summary = ['C/N0 and elevation, function: ' weightSetting2Str(settings.ADJ.snr_elev_weight_fun)];
+    elseif settings.ADJ.weight_bore
+        weight_summary = 'Boresight angle';
+    elseif settings.ADJ.weight_none
+        weight_summary = 'None';
+    else
+        weight_summary = 'Unknown';
+    end
+    fprintf('Observation weighting scheme: %s\n', weight_summary);
+end
 if settings.EXP.settings
     save(fullfile(settings.PROC.output_dir, 'settings.mat'),'settings')
 end
 
 % Create Output Files
 [storeData] = create_output(storeData, obs, settings, q_range); 
+
+% create pseudorange residual output if requested
+if isfield(settings.EXP, 'residuals_output') && settings.EXP.residuals_output
+    outputPath = fullfile(settings.PROC.output_dir, 'residuals_info.txt');
+    createResidualsOutput(settings, storeData, satellites, settings.PROC.epochs, outputPath, input);
+end
 
 % write data4plot.mat
 if settings.EXP.data4plot

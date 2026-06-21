@@ -313,7 +313,7 @@ if isnan(settings.ADJ.var_code) || isnan(settings.ADJ.var_phase) || isnan(settin
 end
 
 % some wrong input for filter settings
-if strcmp(settings.ADJ.filter.type, 'Kalman Filter') || strcmp(settings.ADJ.filter.type, 'Kalman Filter Iterative')
+if strcmp(settings.ADJ.filter.type, 'Kalman Filter') || strcmp(settings.ADJ.filter.type, 'Kalman Filter Iterative') || strcmp(settings.ADJ.filter.type, 'Kalman Filter IGGIII')
     F = settings.ADJ.filter;
     if any(isnan([F.var_coord, F.var_zwd, F.var_rclk_gps, F.var_rclk_glo, ...
             F.var_rclk_gal, F.var_rclk_bds, F.var_DCB, F.var_amb, F.var_iono]))
@@ -563,6 +563,17 @@ if settings.ADJ.weight_sign_str && isa(settings.ADJ.snr_weight_fun,'function_han
     end
 end
 
+if settings.ADJ.weight_snr_elev
+    try
+        if isa(settings.ADJ.snr_elev_weight_fun,'function_handle')
+            settings.ADJ.snr_elev_weight_fun(30, pi/4);
+        end
+    catch
+        errordlg({'Please check the SNR+Elevation weighting function!', 'Use "SNR" and "e" as variables and "." for elementwise ops.'}, windowname)
+        valid_settings = false; return
+    end
+end
+
 % check is reset of solution is valid
 if settings.PROC.reset_float && isnan(settings.PROC.reset_after)
     errordlg('Check reset of solution.', windowname)
@@ -770,7 +781,9 @@ end
 % Check for negative cycle slip detection thresholds
 if settings.OTHER.CS.l1c1_window <= 0 || settings.OTHER.CS.l1c1_threshold <= 0 || ...
         settings.OTHER.CS.DF_threshold <= 0 || settings.OTHER.CS.D_threshold <= 0 || ...
-        settings.OTHER.CS.TD_threshold <= 0
+        settings.OTHER.CS.TD_threshold <= 0 || ...
+        (isfield(settings.OTHER.CS,'TDCP_threshold') && settings.OTHER.CS.TDCP_threshold <= 0) || ...
+        (isfield(settings.OTHER.CS,'TDCP_sigma0') && settings.OTHER.CS.TDCP_sigma0 <= 0)
     errordlg({'Please check your cycle slip detection settings!', 'Negative threshold can not be used.'}, windowname);
     valid_settings = false; return
 end

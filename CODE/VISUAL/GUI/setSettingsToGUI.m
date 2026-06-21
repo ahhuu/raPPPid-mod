@@ -702,6 +702,13 @@ try
     set(handles.edit_cs_td_degree, 'String', num2str(structure.OTHER.CS.TD_degree));
 end
 
+% cycle-slip detection TDCP
+try
+    set(handles.checkbox_cs_tdcp, 'Value', structure.OTHER.CS.cs_tdcp);
+    set(handles.edit_cs_tdcp_thresh, 'String', num2str(structure.OTHER.CS.TDCP_threshold));
+    set(handles.edit_cs_tdcp_sigma0, 'String', num2str(structure.OTHER.CS.TDCP_sigma0));
+end
+
 % cycle-slip detection HMW LC
 try
     set(handles.checkbox_cs_HMW, 'Value', structure.OTHER.CS.HMW);
@@ -897,11 +904,17 @@ try     % write elevation weighting function to text-field
     set(handles.edit_elevation_weighting_function,  'String', strrep(func2str(structure.ADJ.elev_weight_fun), '@(e)', ''));
 end
 set(handles.radiobutton_Signal_Strength_Dependency, 'Value', structure.ADJ.weight_sign_str );
+try
+    set(handles.radiobutton_SNR_Elevation_Dependency, 'Value', structure.ADJ.weight_snr_elev );
+end
 try     % write C/N0 weighting function to text-field
     try
         set(handles.edit_snr_weighting_function,  'String', structure.ADJ.snr_weight_fun);
     end
     set(handles.edit_snr_weighting_function,  'String', strrep(func2str(structure.ADJ.snr_weight_fun), '@(snr)', ''));
+end
+try
+    set(handles.edit_snr_elev_weighting_function, 'String', strrep(func2str(structure.ADJ.snr_elev_weight_fun), '@(snr, e)', ''));
 end
 try
     set(handles.radiobutton_Bore_Dependency,          'Value', structure.ADJ.weight_bore );
@@ -1082,6 +1095,10 @@ try         % ||| remove at some point
     end
     try
         handles.checkbox_exp_sp3.Value = structure.EXP.sp3;
+    end
+    try
+        handles.checkbox_exp_residuals.Value = structure.EXP.residuals_output;
+    catch
     end
     % Variable obs
     handles.checkbox_exp_obs_bias.Value          = structure.EXP.obs_bias;

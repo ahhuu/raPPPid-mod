@@ -52,11 +52,11 @@ for iteration = 1:30
     A_Doppler = zeros(numel(Epoch.doppler), 4);
     % Partial derivations: velocity
     rho = model.rho(:);
-    A_Doppler(:,4) = (param(1) - sat_pos_x) ./ rho;   % x velocity
-    A_Doppler(:,5) = (param(2) - sat_pos_y) ./ rho;   % y velocity
-    A_Doppler(:,6) = (param(3) - sat_pos_z) ./ rho;   % z velocity
+    A_Doppler(:,1) = (param(1) - sat_pos_x) ./ rho;   % x velocity
+    A_Doppler(:,2) = (param(2) - sat_pos_y) ./ rho;   % y velocity
+    A_Doppler(:,3) = (param(3) - sat_pos_z) ./ rho;   % z velocity
     % Partial derivations: receiver clock drift
-    A_Doppler(:,11) = 1 ./ wavelengths;         % receiver clock drift
+    A_Doppler(:,4) = ones(size(wavelengths));         % receiver clock drift
 
     % weight matrix
     P_Doppler = eye(s_f);       % ignore weighting here -> eye
@@ -84,13 +84,14 @@ for iteration = 1:30
     omc_doppler = -(omc_doppler);
 
     % standard LSQ Adjustment
-    dx = adjustment(A_Doppler, P_Doppler, omc_doppler, 5);
+    dx = adjustment(A_Doppler, P_Doppler, omc_doppler, 4);
 
     % add changes in estimated parameters
-    param = param + dx.x;
+    param(4:6) = param(4:6) + dx.x(1:3);
+    param(11) = param(11) + dx.x(4);
 
     % Stop iterations in case of convergence on dm-level
-    if norm(dx.x(4:6)) < 1e-1
+    if norm(dx.x(1:3)) < 1e-1
         break;
     end
 

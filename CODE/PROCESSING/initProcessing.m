@@ -152,6 +152,7 @@ Epoch.cs_HMW_k = zeros(3,nnn);		% HMW LC
 Epoch.cs_HMW = [];
 Epoch.cs_HMW_av = zeros(3,nnn);
 Epoch.cs_HMW_var = zeros(3,nnn);
+Epoch.cs_found_TDCP = false(nnn,1);
 
 if settings.OTHER.CS.l1c1
     % difference L1 minus C1 [m], 1st row = last epoch, 2nd row = 2nd last epoch, ...
@@ -354,6 +355,17 @@ end
 % time difference
 if settings.OTHER.CS.TimeDifference 
     storeData.cs_L1_diff	= zeros(tot_eps,nnn); % phase (L1) difference of last n epochs
+end
+% TDCP residuals
+if isfield(settings.OTHER.CS,'cs_tdcp') && settings.OTHER.CS.cs_tdcp
+    storeData.cs_tdcp_v = zeros(tot_eps,nnn);
+    storeData.cs_tdcp_sigma0 = NaN(tot_eps,1);
+    storeData.cs_tdcp_v_freq = NaN(tot_eps,nnn,proc_frqs);
+    storeData.cs_tdcp_sigma0_freq = NaN(tot_eps,proc_frqs);
+    storeData.cs_tdcp_median_omc_freq = NaN(tot_eps,proc_frqs);
+    storeData.cs_tdcp_clock_term_freq = NaN(tot_eps,proc_frqs);
+    storeData.cs_tdcp_n_sats_freq = NaN(tot_eps,proc_frqs);
+    storeData.cs_tdcp_freq_used = NaN(tot_eps,1);
 end
 % HMW LC
 if settings.OTHER.CS.HMW

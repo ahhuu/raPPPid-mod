@@ -213,12 +213,23 @@ if ~bool_sat
     % ---- prediction with geometric mean, which is more robust
     % predict with positive sign:
     L_pred = L_old + dt*sqrt(D_now.*D_old);      % predict L1 observation with last epoch and Doppler observations
-    L_diff2 = abs(L_now - L_pred);               % calculate difference between observed and predicted
+    L_err2 = L_now - L_pred;                     % calculate difference between observed and predicted
     % predict with negative sign:
     L_pred_ = L_old - dt*sqrt(D_now.*D_old);
-    L_diff_2 = abs(L_now - L_pred_);
-    % take 'correct' difference which changes for each satellite
-    L_diff = min([L_diff2; L_diff_2], [], 'omitnan');
+    L_err_2 = L_now - L_pred_;
+    
+    % Choose the correct prediction sign (the one with smaller absolute error) for each satellite
+    [~, sign_idx] = min([abs(L_err2); abs(L_err_2)], [], 1);
+    L_err = L_err2;
+    L_err(sign_idx == 2) = L_err_2(sign_idx == 2);
+    
+    % Subtract receiver clock drift and clock jump (common to all satellites)
+    % Compute median clock term using only valid satellites that are observed in both epochs
+    median_clk = median(L_err(Epoch.sats), 'omitnan');
+    if isnan(median_clk); median_clk = 0; end
+    
+    % Calculate corrected difference after removing common receiver clock term
+    L_diff = abs(L_err - median_clk);
     new_cs_found = L_diff > thresh;
     
 else        % receiver is placed on a satellite, considers acceleration

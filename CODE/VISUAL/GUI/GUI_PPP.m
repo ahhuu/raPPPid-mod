@@ -65,6 +65,9 @@ handles.edit_gal_rank.String  = DEF.RANKING_GAL;
 handles.edit_bds_rank.String  = DEF.RANKING_BDS;
 handles.edit_qzss_rank.String = DEF.RANKING_QZSS;
 
+% Set Tooltip for Velocity System Noise to hint that both scalar and vector [Q_east, Q_north, Q_up] are supported
+set(handles.edit_filter_velocity_Q, 'TooltipString', '支持标量(映射到北向)或三维向量格式[Q_east, Q_north, Q_up], 如 [0.01, 0.03, 0]');
+
 % Menu-Items, set data panel at the front when opening GUI
 menu_file_setInputFile_Callback(hObject, eventdata, handles)
 
@@ -980,6 +983,20 @@ end
 function checkbox_realtime_Callback(hObject, eventdata, handles)
 end
 
+function checkbox_exp_residuals_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox_exp_residuals (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% No additional action required; value is read by getSettingsFromGUI.
+guidata(hObject, handles);
+end
+
+function checkbox_exp_residuals_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject, 'BackgroundColor'), get(0, 'defaultUicontrolBackgroundColor'))
+    set(hObject, 'BackgroundColor', 'white');
+end
+end
 
 % Approximate position
 function edit_x_Callback(hObject, eventdata, handles)
@@ -3439,8 +3456,14 @@ handles = GUI_enable_onoff(handles);
 guidata(hObject, handles);
 end
 
-% Hatch-Melbourne-W�bbena
+% Hatch-Melbourne-W�bbena
 function checkbox_CycleSlip_HMW_Callback(hObject, eventdata, handles)
+handles = GUI_enable_onoff(handles);
+guidata(hObject, handles);
+end
+
+% TDCP (Time-Differenced Carrier Phase)
+function checkbox_cs_tdcp_Callback(hObject, eventdata, handles)
 handles = GUI_enable_onoff(handles);
 guidata(hObject, handles);
 end
@@ -3525,6 +3548,16 @@ end
 function popupmenu_filter_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject, 'BackgroundColor'), get(0, 'defaultUicontrolBackgroundColor'))
     set(hObject, 'BackgroundColor', 'white');
+end
+try
+    str = get(hObject, 'String');
+    if ischar(str)
+        str = {str};
+    end
+    if ~any(strcmp(str, 'Kalman Filter IGGIII'))
+        set(hObject, 'String', [str; {'Kalman Filter IGGIII'}]);
+    end
+catch
 end
 end
 
@@ -3772,6 +3805,8 @@ end
 function radiobutton_Elevation_Dependency_Callback(hObject, eventdata, handles)
 end
 function radiobutton_Signal_Strength_Dependency_Callback(hObject, eventdata, handles)
+end
+function radiobutton_SNR_Elevation_Dependency_Callback(hObject, eventdata, handles)
 end
 
 % STD code observations
@@ -4471,7 +4506,7 @@ else
         choice = questdlg({'Single Plotting with Multi-Plot Table:',...
             'Multi-Plot Table contains more than one station!'}, ...
             'ATTENTION', ...
-            'Stop', 'Let�s try', 'Stop');
+            'Stop', 'Let�s try', 'Stop');
         if strcmp(choice, 'Stop') || isempty(choice); return; end
     end
     

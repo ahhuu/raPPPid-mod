@@ -1,12 +1,13 @@
-function [Epoch] = cycleSlip(Epoch, settings, use_column)
+function [Epoch] = cycleSlip(Epoch, settings, use_column, varargin)
 % Performs cycle-slip detection. It is possible to insert artificial cycle
 % slip into the observations by uncommenting and editing the function 
 % cycleSlip_artificial.m (in PPP_main.m)
 %
 % INPUT:
-%   Epoch       struct, epoch-specific data for current epoch
+%   Epoch       struct, epoch-specific data
 %   settings	struct, settings from GUI
 %   use_column	cell, used columns of observation matrix for all GNSS and observation types
+%   varargin    optional arguments: input, last_pos, obs
 % OUTPUT:
 %   Epoch       update of .cs_found and added some Cycle-Slip calculations
 %  
@@ -17,6 +18,14 @@ function [Epoch] = cycleSlip(Epoch, settings, use_column)
 % *************************************************************************
 
 if contains(settings.PROC.method, 'Phase')  % except code only solution
+    input = [];
+    last_pos = [];
+    obs = [];
+    if nargin >= 6
+        input = varargin{1};
+        last_pos = varargin{2};
+        obs = varargin{3};
+    end
     
     % --- single-frequency cycle-slip detection 
     if settings.OTHER.CS.l1c1
@@ -40,6 +49,13 @@ if contains(settings.PROC.method, 'Phase')  % except code only solution
     if settings.OTHER.CS.TimeDifference
         Epoch = cycleSlip_TimeDiff(Epoch, use_column, settings);
     end    
+    
+    % --- cycle-slip detection based on TDCP post-fit residuals
+    if isfield(settings.OTHER.CS,'cs_tdcp') && settings.OTHER.CS.cs_tdcp && ~isempty(Epoch.old.sats)
+        if ~isempty(input) && ~isempty(obs)
+            Epoch = cycleSlip_TDCP(Epoch, settings, input, last_pos, obs);
+        end
+    end
     
     % --- cycle-slip detection based on averaged HMW LC
     if settings.OTHER.CS.HMW

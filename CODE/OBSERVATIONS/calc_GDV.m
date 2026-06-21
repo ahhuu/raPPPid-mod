@@ -7,7 +7,7 @@ function dX_GDV = calc_GDV(prn, el, f1, f2, f3, j, IONO_model, n)
 % 
 % INPUT:
 %	prn         raPPPid satellite number
-%   el          elevation of satellite [°]
+%   el          elevation of satellite [ï¿½]
 %   f1,f2,f3    frequency on 1st, 2nd, 3rd processed frequency
 %   j           raPPPid index of processed frequency
 %   IONO_model  ionosphere model of processing
@@ -96,8 +96,10 @@ dX_GDV_(3) = interp1(GDV(:,1), GDV(:,4), el);
 %% consider processed frequency
 if strcmpi(IONO_model,'2-Frequency-IF-LCs')     % ||| replace with Convert2ProcFrqs.m
     % convert to frequency of 2-Frequency-IF-LCs
-    dX_GDV(1) = -(f1^2*dX_GDV_(j(1))-f2^2*dX_GDV_(j(2))) / (f1^2-f2^2);
-    if n > 1
+    if numel(j) >= 2 && j(1) <= numel(dX_GDV_) && j(2) <= numel(dX_GDV_)
+        dX_GDV(1) = -(f1^2*dX_GDV_(j(1))-f2^2*dX_GDV_(j(2))) / (f1^2-f2^2);
+    end
+    if n > 1 && numel(j) >= 3 && j(2) <= numel(dX_GDV_) && j(3) <= numel(dX_GDV_)
         dX_GDV(2) = (f2^2*dX_GDV_(j(2))-f3^2*dX_GDV_(j(3))) / (f2^2-f3^2);
     end
     dX_GDV(3) = 0;
@@ -109,11 +111,21 @@ elseif strcmpi(IONO_model,'3-Frequency-IF-LC')
     e2 = (y3.^2 -y2.*y3 -y2 +1) ./ (2.*(y2.^2 +y3.^2 -y2.*y3 -y2-y3+1));
     e3 = (y2.^2 -y2.*y3 -y3 +1) ./ (2.*(y2.^2 +y3.^2 -y2.*y3 -y2-y3+1));
     % convert to frequency of 3-Frequency-IF-LC
-    dX_GDV(1) = e1.*dX_GDV_(j(1)) + e2.*dX_GDV_(j(2)) + e3.*dX_GDV_(j(3));
+    if numel(j) >= 3
+        v1 = 0; v2 = 0; v3 = 0;
+        if j(1) <= numel(dX_GDV_); v1 = dX_GDV_(j(1)); end
+        if j(2) <= numel(dX_GDV_); v2 = dX_GDV_(j(2)); end
+        if j(3) <= numel(dX_GDV_); v3 = dX_GDV_(j(3)); end
+        dX_GDV(1) = e1.*v1 + e2.*v2 + e3.*v3;
+    end
     dX_GDV(2) = 0;
     dX_GDV(3) = 0;
     
 else
     % resort depending on processed frequenceis
-    dX_GDV(1:numel(j)) = dX_GDV_(j);
+    for idx = 1:min(numel(j), numel(dX_GDV))
+        if j(idx) <= numel(dX_GDV_)
+            dX_GDV(idx) = dX_GDV_(j(idx));
+        end
+    end
 end
