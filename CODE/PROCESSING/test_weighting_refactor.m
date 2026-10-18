@@ -13,10 +13,11 @@ settings.ADJ.fac_BDS = 1;
 
 % Mock Epoch
 Epoch.sats = [1; 2; 3];
-Epoch.gps = [1; 1; 1];
-Epoch.glo = [0; 0; 0];
-Epoch.gal = [0; 0; 0];
-Epoch.bds = [0; 0; 0];
+Epoch.gps = logical([1; 1; 1]);
+Epoch.glo = false(3,1);
+Epoch.gal = false(3,1);
+Epoch.bds = false(3,1);
+Epoch.qzss = false(3,1);
 Epoch.S1 = [30; 40; 50];
 Epoch.S2 = [32; 42; 52];
 Epoch.S3 = [35; 45; 55];
@@ -86,11 +87,11 @@ settings.ADJ.weight_elev = 1;
 
 % Mock Epoch with different systems
 Epoch.sats = [1; 21; 31]; % G01, E01, C01
-Epoch.gps = [1; 0; 0];
-Epoch.gal = [0; 1; 0];
-Epoch.bds = [0; 0; 1];
-Epoch.glo = [0; 0; 0];
-Epoch.qzss = [0; 0; 0];
+Epoch.gps = logical([1; 0; 0]);
+Epoch.gal = logical([0; 1; 0]);
+Epoch.bds = logical([0; 0; 1]);
+Epoch.glo = false(3,1);
+Epoch.qzss = false(3,1);
 
 % GPS: sin(e)^2; GAL: sin(e); default: 1
 settings.ADJ.elev_weight_fun = struct();
@@ -111,7 +112,7 @@ fprintf('PASSED\n');
 %% Test 6: Parser Logic Verification
 fprintf('Test 6: Parser Logic Verification... ');
 % Test Elevation Parser with complex prefix string
-funstring = 'GPS: sin(e)^2; GAL: sin(e); 1';
+funstring = '1; GPS: sin(e)^2; GAL: sin(e)';
 fh = ElevationWeightingFunction(funstring);
 assert(isstruct(fh));
 assert(isfield(fh, 'GPS') && iscell(fh.GPS) && numel(fh.GPS) == 1);
@@ -119,7 +120,7 @@ assert(isfield(fh, 'GAL') && iscell(fh.GAL) && numel(fh.GAL) == 1);
 assert(isfield(fh, 'default') && iscell(fh.default) && numel(fh.default) == 1);
 
 % Test SNR Parser with prefixes and options
-funstring = 'G: option_1; E: SNR/100; sin(SNR)';
+funstring = 'sin(SNR); G: option_1; E: SNR/100';
 fh = SNRWeightingFunction(funstring);
 assert(isstruct(fh));
 assert(strcmp(fh.GPS{1}, 'option_1'));
@@ -128,3 +129,9 @@ assert(isa(fh.default{1}, 'function_handle'));
 fprintf('PASSED\n');
 
 fprintf('\nAll Unit Tests (Frequency & System) Passed Successfully!\n');
+
+% Unprefixed formulas after a system prefix are additional frequencies.
+fh=ElevationWeightingFunction('G: sin(e); sin(e)^2');
+assert(numel(fh.GPS)==2);
+fh=SNR_ElevationWeightingFunction('@(SNR,e) SNR/100.*sin(e)');
+assert(abs(fh(30,pi/2)-0.3)<1e-12);

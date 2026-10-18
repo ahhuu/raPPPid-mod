@@ -62,13 +62,10 @@ for i = 1:num_parts
         error('Combined function must contain both "SNR" and "e".');
     end
     
-    % 添加函数前缀
-    if ~strncmp(current_str, '@(SNR, e)', 9) && ~strncmp(current_str, '@(snr, e)', 9)
-        if strncmp(current_str, '@(', 2)
-            current_str = ['@(SNR, e)' strrep(current_str, '@(', '')];
-        else
-            current_str = ['@(SNR, e)' current_str];
-        end
+    % Add an anonymous-function prefix only for a bare formula. Existing
+    % handles are accepted regardless of argument spacing/capitalization.
+    if ~strncmp(current_str, '@(', 2)
+        current_str = ['@(SNR,e)' current_str];
     end
     
     % 转换并进行调试测试

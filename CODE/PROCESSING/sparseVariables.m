@@ -54,8 +54,11 @@ end
 if contains(settings.IONO.model,'Estimate')		% ionosphere is estimated
     storeData.iono_est = sparse(storeData.iono_est);
 end
-storeData.exclude  = sparse(storeData.cs_found);
-storeData.cs_found = sparse(storeData.exclude);
+% Preserve the two independent diagnostics.  The previous assignments
+% copied cs_found into exclude and then copied it back into cs_found,
+% permanently losing the real exclusion mask in exported data4plot files.
+storeData.exclude  = sparse(storeData.exclude);
+storeData.cs_found = sparse(storeData.cs_found);
 
 % satellite status
 if settings.EXP.storeData_sat_status && isfield(storeData, 'sat_status')
