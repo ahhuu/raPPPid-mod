@@ -189,7 +189,18 @@ if isfield(handles, 'checkbox_bds23_isb')
     end
 end
 
+% Advanced settings are explicitly round-tripped with the main settings.
+if ~isfield(handles,'quality_control')
+    handles.quality_control=copyQualityControlSettings(struct(),struct());
+end
+if isfield(handles,'menu_quality_control')
+    set(handles.menu_quality_control,'Callback',@(~,~) GUI_QualityControl(hObject));
+end
+if isfield(handles,'checkbox_code_snr_f2')
+    set(handles.checkbox_code_snr_f2,'Callback',@(s,e) checkbox_code_snr_f2_Callback(s,e,guidata(s)));
+end
 % --- GUI layout handled by GUIDE ---
+applyParameterTooltips(hObject);
 
 % Update handles structure
 guidata(hObject, handles);
@@ -3876,6 +3887,20 @@ if isnan(eventdata.NewData) || ...      % values was deleted
     % set empty
     eventdata.Source.Data{row,col} = [];
 end
+end
+
+
+function checkbox_code_snr_f2_Callback(hObject, eventdata, handles)
+enabled = logical(get(hObject, 'Value'));
+state = 'off';
+if enabled; state = 'on'; end
+controls = {'edit_code_snr_f2_low','edit_code_snr_f2_high','edit_code_snr_f2_std'};
+for k = 1:numel(controls)
+    if isfield(handles, controls{k})
+        set(handles.(controls{k}), 'Enable', state);
+    end
+end
+guidata(hObject, handles);
 end
 
 

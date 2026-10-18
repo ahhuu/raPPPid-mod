@@ -21,6 +21,10 @@ function valid_settings = checkProcessingSettings(settings, prebatch_check)
 
 
 %% Preparations
+problems=validateQualityControlSettings(settings,true);
+if ~isempty(problems)
+    errordlg(problems,'Quality control settings'); valid_settings=false; return;
+end
 valid_settings = true;          % set to true in assumption of valid settings
 
 % boolean if GPS or GLONASS or ... is enabled
@@ -602,6 +606,34 @@ if any([settings.ADJ.fac_GPS settings.ADJ.fac_GLO settings.ADJ.fac_GAL settings.
         any([settings.ADJ.fac_GPS settings.ADJ.fac_GLO settings.ADJ.fac_GAL settings.ADJ.fac_BDS] >= 10)
     errordlg('Check GNSS weights!', windowname);
     valid_settings = false; return
+end
+
+% GPS frequency-2 raw-code SNR standard-deviation settings
+if isfield(settings.ADJ, 'code_snr_f2') && settings.ADJ.code_snr_f2.enable
+    cfg = settings.ADJ.code_snr_f2;
+    values = [cfg.low_snr, cfg.high_snr, cfg.low_std];
+    if any(~isfinite(values)) || cfg.low_snr <= 0 || cfg.high_snr > 99 || ...
+            cfg.high_snr <= cfg.low_snr || cfg.low_std <= 0
+        errordlg({'Check GPS f2 code SNR standard-deviation settings.', ...
+            'Require 0 < low C/N0 < high C/N0 <= 99 and low std > 0.'}, windowname);
+        valid_settings = false; return
+    end
+    if ~settings.ADJ.bool_std_frqs
+        errordlg('GPS f2 code SNR standard deviation requires frequency-specific standard deviations.', windowname);
+        valid_settings = false; return
+    end
+    if ~settings.INPUT.use_GPS || numel(settings.INPUT.gps_freq) < 2 || ...
+            strcmpi(settings.INPUT.gps_freq{2}, 'OFF')
+        errordlg('GPS f2 code SNR standard deviation requires GPS frequency 2.', windowname);
+        valid_settings = false; return
+    end
+    gps_f2_base_std = sqrt(settings.ADJ.var_code_frq(1,2));
+    if cfg.low_std < gps_f2_base_std
+        errordlg(sprintf(['GPS f2 low-SNR standard deviation (%.3f m) must not be ' ...
+            'smaller than its high-SNR/base value (%.3f m).'], ...
+            cfg.low_std, gps_f2_base_std), windowname);
+        valid_settings = false; return
+    end
 end
 
 % Check settings of HMW fixing

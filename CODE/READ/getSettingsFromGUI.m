@@ -572,6 +572,28 @@ T = handles.uitable_phase_std_frqs.Data;
 T(cellfun('isempty',T)) = {sqrt(settings.ADJ.var_phase)};
 settings.ADJ.var_phase_frq = cell2mat(T).^2;   % manipulated table used during processing
 
+% GPS frequency-2 raw-code standard deviation driven by SNR.
+% The validated defaults are 30/40 dB-Hz and 0.300 m at the low endpoint.
+if isfield(handles, 'checkbox_code_snr_f2')
+    enable_code_snr_f2 = logical(handles.checkbox_code_snr_f2.Value);
+    low_snr_code_f2 = str2double(handles.edit_code_snr_f2_low.String);
+    high_snr_code_f2 = str2double(handles.edit_code_snr_f2_high.String);
+    low_std_code_f2 = str2double(handles.edit_code_snr_f2_std.String);
+else
+    enable_code_snr_f2 = false;
+    low_snr_code_f2 = 30;
+    high_snr_code_f2 = 40;
+    low_std_code_f2 = 0.300;
+end
+settings.ADJ.code_snr_f2 = struct( ...
+    'enable', enable_code_snr_f2, ...
+    'low_snr', low_snr_code_f2, ...
+    'high_snr', high_snr_code_f2, ...
+    'low_std', low_std_code_f2, ...
+    'missing_snr', 'base', ...
+    'systems', struct('GPS',true,'GLO',false,'GAL',false, ...
+                      'BDS',false,'QZSS',false));
+
 
 %% Run - Processing Options
 
@@ -760,6 +782,12 @@ end
 settings.PLOT.pos_true = [0; 0; 0];    % ||| change at some point
 if isnan(settings.PLOT.pos_true)       % if no true position is entered used approximate position instead
     settings.PLOT.pos_true = settings.PLOT.pos_approx;
+end
+
+if isfield(handles,'quality_control')
+    settings=copyQualityControlSettings(settings,handles.quality_control);
+else
+    settings=applyQualityControlDefaults(settings);
 end
 
 end

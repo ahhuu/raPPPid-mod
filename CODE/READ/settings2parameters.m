@@ -49,3 +49,17 @@ parameters.PROC = rmfield(parameters.PROC, 'exclude');
 parameters.PROC = rmfield(parameters.PROC, 'excl_partly');
 parameters.PROC = rmfield(parameters.PROC, 'exclude_sats');
 
+% Generic parameter templates must not activate sidecars from another input.
+if isfield(parameters.PROC,'predicted_phase')
+    parameters.PROC.predicted_phase.enable=false;
+    parameters.PROC.predicted_phase.metadata_file='';
+    parameters.PROC.predicted_phase.quality_rms_file='';
+end
+if isfield(parameters.PROC,'raim')
+    parameters.PROC.raim.experiment_action='none';
+    parameters.PROC.raim.calibration_file='';
+    parameters.PROC.raim.validation_gps_week=NaN;
+    parameters.PROC.raim.validation_start_sow=NaN;
+    if isfield(parameters.PROC.raim,'calibration'); parameters.PROC.raim=rmfield(parameters.PROC.raim,'calibration'); end
+end
+

@@ -19,6 +19,14 @@ function [handles] = setSettingsToGUI(structure, handles, bool_settings)
 % *************************************************************************
 
 
+retired={'OTHER.mp_soft','PROC.omc_soft_code','PROC.omc_soft_phase','ADJ.smartphone_stochastic.enable'};
+for k_qc=1:numel(retired)
+    [~,v_qc,found_qc]=qualityControlField(structure,retired{k_qc});
+    if found_qc && any(v_qc(:))
+        warning('QualityControl:RetiredSetting','GUI does not enable retired experiment %s; use its archived source to reproduce it.',retired{k_qc});
+    end
+end
+handles.quality_control=copyQualityControlSettings(struct(),structure);
 path = handles.paths;
 % reset those fields of struct path which are valid for settings AND 
 % parameter files, saved into handles at the end of this function
@@ -1013,6 +1021,29 @@ try
 catch
     handles.uitable_code_std_frqs.Data(:,:) = {[]};
     handles.uitable_phase_std_frqs.Data(:,:) = {[]};
+end
+
+% GPS frequency-2 raw-code SNR standard deviation (old settings compatible)
+enable_code_snr_f2 = false;
+low_snr_code_f2 = 30;
+high_snr_code_f2 = 40;
+low_std_code_f2 = 0.300;
+if isfield(structure.ADJ, 'code_snr_f2')
+    cfg = structure.ADJ.code_snr_f2;
+    if isfield(cfg, 'enable');   enable_code_snr_f2 = logical(cfg.enable); end
+    if isfield(cfg, 'low_snr');  low_snr_code_f2 = cfg.low_snr; end
+    if isfield(cfg, 'high_snr'); high_snr_code_f2 = cfg.high_snr; end
+    if isfield(cfg, 'low_std');  low_std_code_f2 = cfg.low_std; end
+end
+if isfield(handles, 'checkbox_code_snr_f2')
+    set(handles.checkbox_code_snr_f2, 'Value', enable_code_snr_f2);
+    set(handles.edit_code_snr_f2_low, 'String', sprintf('%.1f', low_snr_code_f2));
+    set(handles.edit_code_snr_f2_high, 'String', sprintf('%.1f', high_snr_code_f2));
+    set(handles.edit_code_snr_f2_std, 'String', sprintf('%.3f', low_std_code_f2));
+    state = 'off';
+    if enable_code_snr_f2; state = 'on'; end
+    set([handles.edit_code_snr_f2_low, handles.edit_code_snr_f2_high, ...
+         handles.edit_code_snr_f2_std], 'Enable', state);
 end
 
 
