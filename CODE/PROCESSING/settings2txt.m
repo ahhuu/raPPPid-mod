@@ -39,6 +39,27 @@ if settings.INPUT.bool_realtime
 end
 fprintf(fileID,'\n');
 
+if isfield(settings.PROC,'predicted_phase')
+    p = settings.PROC.predicted_phase;
+    fprintf(fileID,'%s\n','Doppler-predicted carrier phase:');
+    fprintf(fileID,'  Enabled: %d\n', logical(p.enable));
+    if p.enable
+        fprintf(fileID,'  Metadata CSV: %s\n', char(p.metadata_file));
+        fprintf(fileID,'  Maximum prediction length [epochs]: %.0f\n', p.max_prediction_length);
+        fprintf(fileID,'  Sigma scale: %.3f\n', p.sigma_scale);
+        fprintf(fileID,'  Sigma floor [m]: %.4f\n', p.sigma_floor_m);
+        fprintf(fileID,'  Time tolerance [ms]: %.0f\n', p.time_tolerance_ms);
+        fprintf(fileID,'  Exclude from non-LLI cycle-slip detectors: %d\n', ...
+            logical(p.exclude_from_cycle_slip));
+        fprintf(fileID,'  Allowed prediction signals: %s\n', strjoin(string(p.allowed_signals), ', '));
+        fprintf(fileID,'  Prediction quality CSV: %s\n', char(p.quality_rms_file));
+        fprintf(fileID,'  Maximum quality RMS [m]: %.4f\n', p.quality_max_rms_m);
+        fprintf(fileID,'  Quality sigma scale: %.3f\n', p.quality_sigma_scale);
+        fprintf(fileID,'  Minimum quality samples: %.0f\n', p.quality_min_samples);
+    end
+    fprintf(fileID,'\n');
+end
+
 
 
 %% Selected Signals
@@ -437,6 +458,17 @@ if settings.ADJ.bool_std_frqs       % Frequency-specific standard devations
 else
     fprintf(fileID, '  %s\n', 'No frequency-specifics');
 end
+if isfield(settings.ADJ, 'code_snr_f2') && settings.ADJ.code_snr_f2.enable
+    cfg = settings.ADJ.code_snr_f2;
+    fprintf(fileID, ['  Frequency-2 code SNR standard deviation: enabled, ' ...
+        'low/high C/N0 = %.1f/%.1f dB-Hz, low std = %.3f m, missing SNR = %s\n'], ...
+        cfg.low_snr, cfg.high_snr, cfg.low_std, cfg.missing_snr);
+    fprintf(fileID, '    Enabled systems (GPS/GLO/GAL/BDS/QZSS): %d/%d/%d/%d/%d\n', ...
+        cfg.systems.GPS, cfg.systems.GLO, cfg.systems.GAL, ...
+        cfg.systems.BDS, cfg.systems.QZSS);
+else
+    fprintf(fileID, '  Frequency-2 code SNR standard deviation: disabled\n');
+end
 % Standard deviation of ionospheric pseudo-observations
 if strcmpi(settings.IONO.model,'Estimate with ... as constraint')
     fprintf(fileID, '%s%6.3f\n', '    ionosphere  = ',sqrt(settings.ADJ.var_iono));
@@ -530,6 +562,15 @@ if settings.PROC.reset_float || settings.PROC.reset_fixed
     elseif settings.PROC.reset_bool_epoch
         fprintf(fileID,'  %s%d%s\n','Reset solution after ', settings.PROC.reset_after, ' epochs');
     end
+end
+if isfield(settings.PROC, 'cold_start') && settings.PROC.cold_start.enable
+    cs = settings.PROC.cold_start;
+    fprintf(fileID,'  Segment cold start: %s, window = %d epochs, min samples = %d\n', ...
+        cs.mode, cs.window_epochs, cs.min_samples);
+    fprintf(fileID,'  Cold-start robust code: %d, Huber c = %.2f, weight floor = %.3f\n', ...
+        cs.robust_code, cs.huber_c, cs.weight_floor);
+else
+    fprintf(fileID,'  Segment cold start: disabled\n');
 end
 if settings.INPUT.use_GPS
     fprintf(fileID,'  %s%s%s%s%s%s\n','GPS-Frequencies: ',settings.INPUT.gps_freq{1},', ',settings.INPUT.gps_freq{2},', ',settings.INPUT.gps_freq{3});
@@ -633,6 +674,35 @@ if settings.PROC.check_omc
     fprintf(fileID,'      %s%d%s%d\n', 'Factor: ', settings.PROC.omc_factor, '; Window: ', settings.PROC.omc_window);
 else
     fprintf(fileID,'    %s\n', 'Check of observed minus (omc) computed is OFF.');
+end
+if isfield(settings.PROC,'raim') && isfield(settings.PROC.raim,'enable') ...
+        && settings.PROC.raim.enable
+    r = settings.PROC.raim;
+    if ~isfield(r,'mode'); r.mode = 'monitor_only'; end
+    if ~isfield(r,'test_model'); r.test_model = 'wls_residual'; end
+    if ~isfield(r,'pfa_global'); r.pfa_global = 1e-3; end
+    if ~isfield(r,'min_redundancy'); r.min_redundancy = 1; end
+    fprintf(fileID,'    RAIM code monitor: ON\n');
+    fprintf(fileID,'      Mode: %s\n', char(r.mode));
+    fprintf(fileID,'      Test model: %s\n', char(r.test_model));
+    if isfield(r,'implementation_version')
+        fprintf(fileID,'      Implementation: %s\n',r.implementation_version);
+    end
+    if isfield(r,'capture_stride')
+        fprintf(fileID,'      Replay capture stride: %d epochs (0=off)\n',r.capture_stride);
+    end
+    fprintf(fileID,'      Global false-alarm probability: %.6g\n', r.pfa_global);
+    fprintf(fileID,'      Minimum redundancy: %d\n', r.min_redundancy);
+    if isfield(r,'experiment_action') && ~strcmp(r.experiment_action,'none')
+        fprintf(fileID,'      Experimental PPP action: %s\n',r.experiment_action);
+        fprintf(fileID,'      Action enabled from GPS SOW: %.6f\n',r.validation_start_sow);
+        fprintf(fileID,'      Frozen calibration source: %s\n',r.calibration_file);
+        fprintf(fileID,'      Code variance multiplier for downweight: %.6g\n',r.downweight_variance_factor);
+    else
+        fprintf(fileID,'      Exclusion applied to PPP: NO (monitor only)\n');
+    end
+else
+    fprintf(fileID,'    RAIM code monitor: OFF\n');
 end
 
 if settings.PROC.bool_rec_clk_jump
@@ -744,6 +814,7 @@ fprintf(fileID,'  raPPPid %s', DEF.version);
 
 
 %% close file
+writeQualityControlSummary(fileID, settings);
 fclose(fileID);
 
 end

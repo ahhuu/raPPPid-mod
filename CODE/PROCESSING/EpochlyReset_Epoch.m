@@ -25,6 +25,8 @@ end
 
 
 % time
+if isfield(Epoch,'raim'); Epoch = rmfield(Epoch,'raim'); end
+if isfield(Epoch,'raim_action'); Epoch = rmfield(Epoch,'raim_action'); end
 Epoch.gps_time = [];
 Epoch.gps_week = [];
 Epoch.mjd = [];
@@ -99,6 +101,11 @@ Epoch.cs_dL1dL3 = [];
 Epoch.cs_dL2dL3 = [];
 Epoch.cs_found_MW = [];
 Epoch.cs_found_GF = [];
+Epoch.phase_predicted = [];
+Epoch.phase_prediction_length = [];
+Epoch.phase_prediction_sigma_m = [];
+Epoch.phase_prediction_rejected = [];
+Epoch.phase_prediction_cs_suppressed = [];
 Epoch.cs_pred_SF = NaN(410,1);
 % satellite status
 Epoch.sat_status = [];

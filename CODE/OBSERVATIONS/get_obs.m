@@ -36,7 +36,9 @@ Epoch.D1 = []; Epoch.D2 = []; Epoch.D3 = [];
 bool_m = settings.INPUT.rawDataAndroid;         % already in [m]
 % check processed PPP model
 code_only = strcmpi(settings.PROC.method,'Code Only');
-doppler = contains(settings.PROC.method, 'Doppler');
+robust_code_doppler = isfield(settings.PROC, 'cold_start') && ...
+    settings.PROC.cold_start.enable && settings.PROC.cold_start.robust_code;
+doppler = contains(settings.PROC.method, 'Doppler') || robust_code_doppler;
 IF_LC_2fr_1x = strcmpi(settings.IONO.model,'2-Frequency-IF-LCs') & settings.INPUT.num_freqs == 2;
 IF_LC_2fr_2x = strcmpi(settings.IONO.model,'2-Frequency-IF-LCs') & settings.INPUT.num_freqs == 3;
 IF_LC_3fr = strcmpi(settings.IONO.model,'3-Frequency-IF-LC');

@@ -22,6 +22,7 @@ if contains(settings.PROC.method, 'Phase')  % except code only solution
     cs_other = false(m, nfreq);
     cs_mw = false(m, nfreq);
     cs_gf = false(m, nfreq);
+    cs_lli = false(m, nfreq);
 
     % defaults for optional MW+GF settings (keep backward compatibility)
     if ~isfield(settings.OTHER.CS, 'HMW'); settings.OTHER.CS.HMW = false; end
@@ -89,8 +90,11 @@ if contains(settings.PROC.method, 'Phase')  % except code only solution
     
     % --- check if Loss of Lock Indicator is set in RINEX observation file
     if settings.PROC.LLI
+        cs_before_lli = Epoch.cs_found;
+        Epoch.cs_found = false(m, nfreq);
         Epoch = cycleSlip_LLI(Epoch, use_column, settings);
-        cs_other = cs_other | Epoch.cs_found;
+        cs_lli = Epoch.cs_found;
+        Epoch.cs_found = cs_before_lli;
     end
 
 
@@ -110,9 +114,41 @@ if contains(settings.PROC.method, 'Phase')  % except code only solution
         end
     end
 
-    Epoch.cs_found = cs_other | cs_mwgf;
+    % Doppler-predicted phase must not confirm its own continuity. Suppress
+    % all non-LLI detectors for a satellite whenever the current or previous
+    % epoch contains a predicted processed phase. Genuine RINEX LLI remains.
+    if isfield(settings.PROC, 'predicted_phase') && ...
+            settings.PROC.predicted_phase.exclude_from_cycle_slip
+        pred_sat = predictedSatelliteMask(Epoch);
+        cs_other(pred_sat,:) = false;
+        cs_mwgf(pred_sat,:) = false;
+        cs_mw(pred_sat,:) = false;
+        cs_gf(pred_sat,:) = false;
+        if isfield(Epoch,'cs_found_MW'); Epoch.cs_found_MW(pred_sat,:) = false; end
+        if isfield(Epoch,'cs_found_GF'); Epoch.cs_found_GF(pred_sat,:) = false; end
+        if isfield(Epoch,'cs_found_TDCP'); Epoch.cs_found_TDCP(pred_sat,:) = false; end
+        Epoch.phase_prediction_cs_suppressed = pred_sat;
+    else
+        Epoch.phase_prediction_cs_suppressed = false(m,1);
+    end
+
+    Epoch.cs_found = cs_other | cs_mwgf | cs_lli;
    
 
     % save detected cycle slips in Epoch.sat_status
     Epoch.sat_status(Epoch.cs_found) = 3;
+end
+end
+
+function pred_sat = predictedSatelliteMask(Epoch)
+pred_sat = false(numel(Epoch.sats),1);
+if isfield(Epoch,'phase_predicted') && ~isempty(Epoch.phase_predicted)
+    pred_sat = pred_sat | any(Epoch.phase_predicted,2);
+end
+if ~isfield(Epoch,'old') || ~isfield(Epoch.old,'phase_predicted') || ...
+        isempty(Epoch.old.phase_predicted) || ~isfield(Epoch.old,'sats')
+    return;
+end
+old_pred_sats = Epoch.old.sats(any(Epoch.old.phase_predicted,2));
+pred_sat = pred_sat | ismember(Epoch.sats, old_pred_sats(:));
 end

@@ -112,6 +112,18 @@ while it < DEF.ITERATION_MAX_NUMBER    	% Start iteration (because of linearizat
     
     % --- create covariance matrix of observations
     Adjust = createObsCovariance(Adjust, Epoch, settings, model.el);
+
+    % --- monitor code-observation integrity (RAIM stage 1)
+    % The monitor is default-off and never changes exclusions or the PPP
+    % solution. Run it once per epoch, before the first filter iteration.
+    if it == 1 && isfield(settings.PROC, 'raim') && ...
+            isfield(settings.PROC.raim, 'enable') && settings.PROC.raim.enable
+        [Epoch, ~] = raimCodeMonitor(Epoch, Adjust, settings);
+        captureRaimEpoch(Epoch, Adjust, settings, model.el);
+    end
+    if isfield(settings.PROC,'raim') && isfield(settings.PROC.raim,'enable') && settings.PROC.raim.enable
+        [Epoch,Adjust] = applyRaimCodeExperiment(Epoch,Adjust,settings,model.el,it);
+    end
     
     % --- check if too many satellites have been excluded because of e.g. 
     % elevation cutoff, check_omc, missing broadcast corrections...

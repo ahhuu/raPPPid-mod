@@ -107,6 +107,43 @@ if (settings.PROC.timeFrame(2) - settings.PROC.timeFrame(1)) > q    || settings.
     end
     storeData.exclude           = storeData.exclude(eps,:);
 	storeData.cs_found          = storeData.cs_found(eps,:);
+    fields_qc={'exclude_freq','cs_found_freq','cold_start_age','cold_start_hold_count', ...
+        'cold_start_initialized_count','cold_start_code_downweighted','cold_start_code_weight_min'};
+    for k_qc=1:numel(fields_qc)
+        name_qc=fields_qc{k_qc};
+        if isfield(storeData,name_qc); storeData.(name_qc)=storeData.(name_qc)(eps,:,:); end
+    end
+    if isfield(storeData,'phase_predicted_freq')
+        storeData.phase_predicted_freq = storeData.phase_predicted_freq(eps,:,:);
+        storeData.phase_prediction_length_freq = storeData.phase_prediction_length_freq(eps,:,:);
+        storeData.phase_prediction_sigma_m_freq = storeData.phase_prediction_sigma_m_freq(eps,:,:);
+        storeData.phase_prediction_rejected_freq = storeData.phase_prediction_rejected_freq(eps,:,:);
+        storeData.phase_prediction_cs_suppressed = storeData.phase_prediction_cs_suppressed(eps,:);
+    end
+    if isfield(storeData,'raim_available')
+        if isfield(storeData,'raim_action_code')
+            storeData.raim_action_code = storeData.raim_action_code(eps,:);
+            storeData.raim_action_satellite = storeData.raim_action_satellite(eps,:);
+            storeData.raim_action_frequency = storeData.raim_action_frequency(eps,:);
+            storeData.raim_action_post_ratio = storeData.raim_action_post_ratio(eps,:);
+            storeData.raim_action_geometry_ratio = storeData.raim_action_geometry_ratio(eps,:);
+        end
+        storeData.raim_available = storeData.raim_available(eps,:);
+        storeData.raim_pass = storeData.raim_pass(eps,:);
+        storeData.raim_status_code = storeData.raim_status_code(eps,:);
+        storeData.raim_statistic = storeData.raim_statistic(eps,:);
+        storeData.raim_threshold = storeData.raim_threshold(eps,:);
+        storeData.raim_pfa_global = storeData.raim_pfa_global(eps,:);
+        storeData.raim_dof = storeData.raim_dof(eps,:);
+        storeData.raim_n_observations = storeData.raim_n_observations(eps,:);
+        storeData.raim_n_parameters = storeData.raim_n_parameters(eps,:);
+        storeData.raim_max_standardized_residual = storeData.raim_max_standardized_residual(eps,:);
+        storeData.raim_candidate_satellite = storeData.raim_candidate_satellite(eps,:);
+        storeData.raim_candidate_frequency = storeData.raim_candidate_frequency(eps,:);
+        storeData.raim_observed_freq = storeData.raim_observed_freq(eps,:,:);
+        storeData.raim_residual_m_freq = storeData.raim_residual_m_freq(eps,:,:);
+        storeData.raim_standardized_residual_freq = storeData.raim_standardized_residual_freq(eps,:,:);
+    end
     storeData.zwd               = storeData.zwd(eps,:);
     storeData.zhd               = storeData.zhd(eps,:);
     if strcmpi(settings.PROC.method,'Code + Phase')

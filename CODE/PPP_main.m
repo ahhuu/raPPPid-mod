@@ -34,6 +34,13 @@ function settings = PPP_main(settings)
 
 %% -+-+-+-+-+-PREPARATIONS-+-+-+-+-+-
 
+settings = applyQualityControlDefaults(settings);
+problems = validateQualityControlSettings(settings,true);
+if ~isempty(problems); error('QualityControl:Settings','%s',strjoin(problems,newline)); end
+if settings.PROC.raim.enable && ~strcmp(settings.PROC.raim.experiment_action,'none')
+    settings.PROC.raim.calibration=loadRaimCalibration(settings.PROC.raim.calibration_file);
+end
+
 % Create path of results folder, the folder itself is created after the processing
 if exist('settings', 'var')     % PPP_main.m started from GUI or with settings as input
     settings.PROC.output_dir = createResultsFolder(settings.INPUT.file_obs, settings.PROC.name);
@@ -79,6 +86,7 @@ bool_brdc_TGD = strcmp(settings.BIASES.code, 'Broadcasted TGD');
 
 % Read Input Data from Files (Ephemerides, Station Data, etc.)
 [input, obs, settings, OBSDATA] = readAllInputFiles(settings);
+prediction_metadata = loadPredictedPhaseMetadata(settings, obs);
 
 % open files for real-time processing
 fid_obs = []; fid_navmess = []; fid_corr2brdc = [];
@@ -129,8 +137,9 @@ end
 
 % create init_ambiguities
 init_ambiguities = NaN(3, 410);     % columns = satellites, rows = frequencies
+coldStart = initSegmentColdStart(settings);
 
-% initialize matrices for Hatch-Melbourne-W黚bena (HMW) LC between
+% initialize matrices for Hatch-Melbourne-Wuebbena (HMW) LC between
 % different frequencies, e.g., for GPS L1-L2-L5 processing
 HMW_12 = []; HMW_23 = []; HMW_13 = [];
 if settings.AMBFIX.bool_AMBFIX
@@ -226,6 +235,11 @@ for q = q_range         % loop over epochs
     % ----- reset solution -----
     [Adjust, Epoch, settings, HMW_12, HMW_23, HMW_13, storeData, init_ambiguities] = ...
         resetSolution(Adjust, Epoch, settings, HMW_12, HMW_23, HMW_13, storeData, obs.interval, init_ambiguities);
+    reset_epoch = Adjust.float_reset_epochs(end);
+    if settings.PROC.cold_start.enable && coldStart.reset_epoch ~= reset_epoch
+        coldStart = initSegmentColdStart(settings);
+        coldStart.reset_epoch = reset_epoch;
+    end
     
     % ----- sort and remove satellites -----
     Epoch = RemoveSort(settings, Epoch, q);
@@ -242,6 +256,7 @@ for q = q_range         % loop over epochs
     
     % ----- prepare observations -----
     [Epoch, obs] = prepareObservations(settings, obs, Epoch);
+    Epoch = attachPredictedPhaseMetadata(Epoch, prediction_metadata, settings, obs);
     
     % ----- check, if enough satellites -----
     bool_enough_sats = check_min_sats(settings.INPUT.use_GPS, settings.INPUT.use_GLO, settings.INPUT.use_GAL, settings.INPUT.use_BDS, settings.INPUT.use_QZSS, ...
@@ -299,6 +314,11 @@ for q = q_range         % loop over epochs
     end
     
     % --- Adjust phase data to Code to limit the ambiguities ---
+    cold_start_hold_phase = false(numel(Epoch.sats), settings.INPUT.proc_freqs);
+    Epoch.cold_start_age = q - reset_epoch + 1;
+    coldStart.age = Epoch.cold_start_age;
+    Epoch.cold_start_hold_count = 0;
+    Epoch.cold_start_initialized_count = 0;
     if strcmpi(settings.PROC.method, 'Code + Phase') && (settings.PROC.AdjustPhase2Code || settings.PROC.bool_rec_clk_jump)
         % Save raw observations before adjusting phase to code so that
         % detectors (e.g., TDCP) can use unmodified raw-phase if needed.
@@ -320,7 +340,8 @@ for q = q_range         % loop over epochs
         if isfield(Epoch, 'C3') && ~isempty(Epoch.C3)
             Epoch.C3_raw = Epoch.C3;
         end
-        [init_ambiguities, Epoch] = AdjustPhase2Code(Epoch, init_ambiguities);
+        [init_ambiguities, Epoch, coldStart, cold_start_hold_phase] = ...
+            AdjustPhase2CodeWindow(Epoch, init_ambiguities, coldStart, settings, reset_epoch);
     end
     
     % --- get and apply satellite biases for current epoch ---
@@ -350,6 +371,9 @@ for q = q_range         % loop over epochs
         Epoch = correct_rec_biases(Epoch, obs);
     end
 
+    % Segment-local robust code weights; no preceding segment is used.
+    [Epoch, coldStart] = updateColdStartCodeWeights(Epoch, coldStart, settings);
+
     % --- perform Cycle-Slip detection ---
     bool_hmw = isfield(settings.OTHER.CS, 'HMW') && settings.OTHER.CS.HMW;
     bool_tdcp = isfield(settings.OTHER.CS, 'cs_tdcp') && settings.OTHER.CS.cs_tdcp;
@@ -360,6 +384,10 @@ for q = q_range         % loop over epochs
             last_pos = settings.INPUT.pos_approx;
         end
         [Epoch] = cycleSlip(Epoch, settings, obs.use_column, input, last_pos, obs);
+    end
+    if settings.PROC.cold_start.enable && ~isempty(cold_start_hold_phase)
+        Epoch.cs_found(:,1:size(cold_start_hold_phase,2)) = ...
+            Epoch.cs_found(:,1:size(cold_start_hold_phase,2)) | cold_start_hold_phase;
     end
     
     % --- Build LCs and processed observations -> Epoch.code/.phase ---
@@ -376,7 +404,7 @@ for q = q_range         % loop over epochs
     if settings.EXP.obs_epochheader; obs.epochheader(q) = cellstr(Epoch.rinex_header); end
     Epoch.delta_windup = model.delta_windup;        % [cycles], for calculation of Wind-Up correction in next epoch
     
-    % 输出当前历元的卫星坐标信息（如果启用）
+    % Export satellite coordinates when enabled.
     if settings.EXP.SatelliteCoordinates_output
         createSatelliteCoordinatesOutput(Epoch, input, settings, model);
     end
@@ -450,10 +478,20 @@ end
 % Create Output Files
 [storeData] = create_output(storeData, obs, settings, Epoch.q ); 
 
+% Export stage-2 monitor-only RAIM diagnostics. This does not modify the
+% solution and is intentionally independent of the ordinary output flags.
+if isfield(settings.PROC,'raim') && isfield(settings.PROC.raim,'enable') ...
+        && settings.PROC.raim.enable && isfield(storeData,'raim_available')
+    createRaimOutput(storeData, settings.PROC.output_dir);
+end
+
 % write data4plot.mat
 if settings.EXP.data4plot
     save([settings.PROC.output_dir, '/data4plot.mat'],     'obs', 'settings');
     if settings.EXP.storeData
+        if ~settings.EXP.quality_diagnostics
+            storeData=compactQualityDiagnostics(storeData);
+        end
         save([settings.PROC.output_dir, '/data4plot.mat'], 'storeData', '-append')
     end
     if settings.EXP.satellites
@@ -464,7 +502,7 @@ if settings.EXP.data4plot
     end
 end
 
-% 检查是否需要输出伪距残差、高度角、信噪比信息
+% Export residual diagnostics when enabled.
 if settings.EXP.residuals_output
     outputPath = fullfile(settings.PROC.output_dir, 'residuals_info.txt');
     createResidualsOutput(settings, storeData, satellites, settings.PROC.epochs, outputPath, input);

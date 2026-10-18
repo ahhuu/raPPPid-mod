@@ -19,7 +19,21 @@ function [Epoch] = cycleSlip_TDCP(Epoch, settings, input, last_pos, obs)
 % 2026/04/28, Antigravity: Implementation based on TDCP residuals proposal
 % *************************************************************************
 
-% 0. Initial checks
+% 0. Initialize epoch-local diagnostics before any early return.  This is
+% essential after a segment reset because the satellite set can change.
+m = numel(Epoch.sats);
+nfreq = size(Epoch.cs_found,2);
+Epoch.cs_found_TDCP = false(m,nfreq);
+Epoch.TDCP_v = nan(m,1);
+Epoch.TDCP_sigma0 = nan;
+Epoch.TDCP_v_freq = NaN(m,nfreq);
+Epoch.TDCP_sigma0_freq = NaN(1,nfreq);
+Epoch.TDCP_median_omc_freq = NaN(1,nfreq);
+Epoch.TDCP_clock_term_freq = NaN(1,nfreq);
+Epoch.TDCP_n_sats_freq = NaN(1,nfreq);
+Epoch.TDCP_stats = struct('median_omc',nan,'n_sats',0,'sigma0',nan,'clock_term',nan,'freq_used',nan);
+
+% Initial checks
 if isempty(Epoch.old) || isempty(Epoch.old.sats)
     return;
 end
@@ -34,6 +48,13 @@ sigma0_threshold = 0.03; % default 3cm
 if isfield(settings.OTHER.CS, 'TDCP_sigma0')
     sigma0_threshold = settings.OTHER.CS.TDCP_sigma0;
 end
+log_only = isfield(settings.OTHER.CS,'TDCP_log_only') && settings.OTHER.CS.TDCP_log_only;
+z_factor = 5;
+if isfield(settings.OTHER.CS,'TDCP_z_factor'); z_factor=settings.OTHER.CS.TDCP_z_factor; end
+min_sats = 6;
+if isfield(settings.OTHER.CS,'TDCP_min_sats'); min_sats=settings.OTHER.CS.TDCP_min_sats; end
+max_reject_cfg = 2;
+if isfield(settings.OTHER.CS,'TDCP_max_reject'); max_reject_cfg=settings.OTHER.CS.TDCP_max_reject; end
 
 % 1. Find common satellites
 [sats_common, idx_curr, idx_old] = intersect(Epoch.sats, Epoch.old.sats);
@@ -60,9 +81,7 @@ param_old = [last_pos; zeros(5,1)];
 
 % Restore settings
 settings.INPUT.proc_freqs = orig_proc_freqs;
-m = numel(Epoch.sats);
-nfreq = size(Epoch.cs_found, 2);
-cs_found_tdcp = false(m, 1);
+cs_found_tdcp = false(m, nfreq);
 tdcp_v = nan(m, 1);
 final_sigma0 = nan;
 final_clock_term = nan;
@@ -102,7 +121,7 @@ for freq = 1:max_freq
     phase_curr = phase_curr_all(idx_curr);
     phase_old = phase_old_all(idx_old);
     valid_freq = ~isnan(phase_curr) & ~isnan(phase_old);
-    if sum(valid_freq) < 5
+    if sum(valid_freq) < min_sats
         continue;
     end
 
@@ -122,14 +141,14 @@ for freq = 1:max_freq
     end
 
     active_idx = true(n_common_f, 1);
-    max_iter = floor(n_common_f / 3);
+    max_iter = min(max_reject_cfg + 1, max(1,n_common_f-min_sats+1));
     if max_iter < 1
         continue;
     end
 
     for iter = 1:max_iter
         curr_n = sum(active_idx);
-        if curr_n < 5; break; end
+        if curr_n < min_sats; break; end
 
         ex = (model_curr.Rot_X(1,idx_curr_f(active_idx))' - last_pos(1)) ./ rho_t(active_idx);
         ey = (model_curr.Rot_X(2,idx_curr_f(active_idx))' - last_pos(2)) ./ rho_t(active_idx);
@@ -154,7 +173,11 @@ for freq = 1:max_freq
         end
 
         v = res.v;
-        [max_v, max_v_idx] = max(abs(v));
+        abs_v = abs(v);
+        [max_v, max_v_idx] = max(abs_v);
+        robust_scale = 1.4826*median(abs(v-median(v,'omitnan')),'omitnan');
+        if ~isfinite(robust_scale); robust_scale=0; end
+        local_threshold = max(threshold,z_factor*robust_scale);
 
         if isnan(tdcp_freq_used)
             tdcp_freq_used = freq;
@@ -179,8 +202,6 @@ for freq = 1:max_freq
         else
             sigma0 = max_v;
         end
-        if sigma0 > 1.0; sigma0 = 1.0; end
-
         if tdcp_freq_used == freq
             final_sigma0 = sigma0;
             tdcp_sigma0_freq(freq) = sigma0;
@@ -194,27 +215,29 @@ for freq = 1:max_freq
             tdcp_n_sats_freq(freq) = curr_n;
         end
 
-        if max_v < threshold && sigma0 < sigma0_threshold
+        global_threshold=max(sigma0_threshold,z_factor*robust_scale);
+        if max_v < local_threshold && sigma0 < global_threshold
             break;
         else
             actual_active_indices = find(active_idx);
             target_sat_idx_in_common = actual_active_indices(max_v_idx);
             target_sat_idx_in_epoch = idx_curr_f(target_sat_idx_in_common);
-            cs_found_tdcp(target_sat_idx_in_epoch) = true;
+            if iter <= max_reject_cfg
+                cs_found_tdcp(target_sat_idx_in_epoch,freq) = true;
+            end
             active_idx(target_sat_idx_in_common) = false;
         end
     end
 end
 
 % 5. Update Epoch
-if ~isfield(Epoch, 'cs_found_TDCP')
-    Epoch.cs_found_TDCP = false(m, 1);
-end
 Epoch.cs_found_TDCP = cs_found_tdcp;
 
-% Apply CS to all frequencies for the detected satellite
-for f = 1:nfreq
-    Epoch.cs_found(:,f) = Epoch.cs_found(:,f) | cs_found_tdcp;
+% Keep recording mode side-effect free; confirmation mode only resets the
+% ambiguity on the frequency that actually failed TDCP.
+if ~log_only
+    Epoch.cs_found(:,1:size(cs_found_tdcp,2)) = ...
+        Epoch.cs_found(:,1:size(cs_found_tdcp,2)) | cs_found_tdcp;
 end
 
 % Store visualization data and statistics for post-processing

@@ -25,6 +25,20 @@ Epoch.cs_L1D1_diff = NaN(1,410);
 Epoch.cs_L2D2_diff = NaN(1,410);
 Epoch.cs_L3D3_diff = NaN(1,410);
 thresh = settings.OTHER.CS.D_threshold;
+robust = isfield(settings.OTHER.CS, 'D_robust') && settings.OTHER.CS.D_robust;
+mad_factor = 6;
+if isfield(settings.OTHER.CS, 'D_mad_factor'); mad_factor = settings.OTHER.CS.D_mad_factor; end
+freq_enable = true(1,3);
+if isfield(settings.OTHER.CS, 'D_freq_enable')
+    freq_enable(1:min(3,numel(settings.OTHER.CS.D_freq_enable))) = ...
+        logical(settings.OTHER.CS.D_freq_enable(1:min(3,numel(settings.OTHER.CS.D_freq_enable))));
+end
+system_freq_enable = true(5,3);
+if isfield(settings.OTHER.CS, 'D_system_freq_enable')
+    cfg_enable = logical(settings.OTHER.CS.D_system_freq_enable);
+    system_freq_enable(1:min(5,size(cfg_enable,1)),1:min(3,size(cfg_enable,2))) = ...
+        cfg_enable(1:min(5,size(cfg_enable,1)),1:min(3,size(cfg_enable,2)));
+end
 bool_print = ~settings.INPUT.bool_parfor;
 dt = Epoch.gps_time - Epoch.old.gps_time;       % time difference between epochs
 % satellite prns of current epoch
@@ -88,8 +102,12 @@ if settings.INPUT.rawDataAndroid        % smartphone raw data processing
     [L1_now, L1_old, D1_now, D1_old] = convert2cycles(L1_now, L1_old, D1_now, D1_old, Const.C ./ f1);
 end
 % detect cycles slips
-[Epoch.cs_found, L1_diff] = ...
-    detect_CS_Doppler(L1_now, L1_old, D1_now, D1_old, dt, 1, Epoch, thresh, bool_print);
+if freq_enable(1)
+    [Epoch.cs_found, L1_diff] = ...
+        detect_CS_Doppler(L1_now, L1_old, D1_now, D1_old, dt, 1, Epoch, thresh, bool_print, robust, mad_factor, system_freq_enable(:,1));
+else
+    L1_diff = NaN(1,410);
+end
 Epoch.cs_L1D1_diff = L1_diff;
 
 % --- 2nd frequency
@@ -108,8 +126,12 @@ if settings.INPUT.proc_freqs > 1
         f2 = NaN(1,410);   f2(Epoch.sats) = Epoch.f2;  
         [L2_now, L2_old, D2_now, D2_old] = convert2cycles(L2_now, L2_old, D2_now, D2_old, Const.C ./ f2);
     end
-    [Epoch.cs_found, L2_diff] = ...
-        detect_CS_Doppler(L2_now, L2_old, D2_now, D2_old, dt, 2, Epoch, thresh, bool_print);
+    if freq_enable(2)
+        [Epoch.cs_found, L2_diff] = ...
+            detect_CS_Doppler(L2_now, L2_old, D2_now, D2_old, dt, 2, Epoch, thresh, bool_print, robust, mad_factor, system_freq_enable(:,2));
+    else
+        L2_diff = NaN(1,410);
+    end
     Epoch.cs_L2D2_diff = L2_diff;
 end
 
@@ -129,8 +151,12 @@ if settings.INPUT.proc_freqs > 2
         f3 = NaN(1,410);   f3(Epoch.sats) = Epoch.f3;
         [L3_now, L3_old, D3_now, D3_old] = convert2cycles(L3_now, L3_old, D3_now, D3_old, Const.C ./ f3);
     end
-    [Epoch.cs_found, L3_diff] = ...
-        detect_CS_Doppler(L3_now, L3_old, D3_now, D3_old, dt, 3, Epoch, thresh, bool_print);
+    if freq_enable(3)
+        [Epoch.cs_found, L3_diff] = ...
+            detect_CS_Doppler(L3_now, L3_old, D3_now, D3_old, dt, 3, Epoch, thresh, bool_print, robust, mad_factor, system_freq_enable(:,3));
+    else
+        L3_diff = NaN(1,410);
+    end
     Epoch.cs_L3D3_diff = L3_diff;
 end
 
@@ -192,7 +218,7 @@ D_old = D_old ./ wl;
 
 
 % check for cycle-slips
-function [cs_found, L_diff] = detect_CS_Doppler(L_now, L_old, D_now, D_old, dt, freq, Epoch, thresh, bool_print)
+function [cs_found, L_diff] = detect_CS_Doppler(L_now, L_old, D_now, D_old, dt, freq, Epoch, thresh, bool_print, robust, mad_factor, system_enable)
 % % ---- predict with arithmetic mean:
 % % predict with positive sign:
 % L_pred = L_old + dt*(D_now + D_old)/2;      % predict L1 observation with last epoch and Doppler observations
@@ -208,7 +234,38 @@ function [cs_found, L_diff] = detect_CS_Doppler(L_now, L_old, D_now, D_old, dt, 
 %     L_diff = L_diff_;
 % end
 
-% ---- prediction with geometric mean, which is more robust
+if robust
+    % Trapezoidal Doppler integration with one sign convention selected for
+    % each constellation.  Removing the constellation common median keeps
+    % receiver-clock/Doppler common mode from becoming dozens of slips.
+    dop_int = dt*(D_now + D_old)/2;
+    res_plus = L_now - (L_old + dop_int);
+    res_minus = L_now - (L_old - dop_int);
+    residual = NaN(1,410);
+    L_diff = NaN(1,410);
+    new_cs_found = false(1,410);
+    groups = {1:99,101:199,201:299,301:399,401:410};
+    for g = 1:numel(groups)
+        if ~system_enable(g); continue; end
+        idx = groups{g};
+        valid = isfinite(res_plus(idx)) & isfinite(res_minus(idx));
+        if ~any(valid); continue; end
+        ip = idx(valid);
+        if median(abs(res_plus(ip)),'omitnan') <= median(abs(res_minus(ip)),'omitnan')
+            r = res_plus(ip);
+        else
+            r = res_minus(ip);
+        end
+        centre = median(r,'omitnan');
+        scale = 1.4826*median(abs(r-centre),'omitnan');
+        if ~isfinite(scale); scale = 0; end
+        adaptive_thresh = max(thresh, mad_factor*scale);
+        residual(ip) = r-centre;
+        L_diff(ip) = abs(residual(ip));
+        new_cs_found(ip) = L_diff(ip) > adaptive_thresh;
+    end
+else
+% ---- legacy prediction with geometric mean
 % predict with positive sign:
 L_pred = L_old + dt*sqrt(D_now.*D_old);      % predict L1 observation with last epoch and Doppler observations
 L_diff2 = abs(L_now - L_pred);               % calculate difference between observed and predicted
@@ -218,6 +275,11 @@ L_diff_2 = abs(L_now - L_pred_);
 % take 'correct' difference which changes for each satellite
 L_diff = min([L_diff2; L_diff_2], [], 'omitnan');
 new_cs_found = L_diff > thresh;
+groups = {1:99,101:199,201:299,301:399,401:410};
+for g=1:numel(groups)
+    if ~system_enable(g); new_cs_found(groups{g})=false; end
+end
+end
 
 cs_found = Epoch.cs_found;
 % print information about detected cycle-slips

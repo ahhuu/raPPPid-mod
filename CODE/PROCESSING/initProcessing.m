@@ -210,6 +210,41 @@ storeData.param_sigma = cell(tot_eps,1);    % cell as covariance matrix of param
 storeData.param_var = zeros(tot_eps,Adjust.NO_PARAM);
 storeData.exclude = zeros(tot_eps,nnn);   	% boolean for sat under cutoff angle, 1 = under cutoff
 storeData.cs_found = zeros(tot_eps,nnn);    % boolean, true = phase observation excluded
+% Keep frequency-resolved diagnostics; the legacy 2-D fields above remain
+% available for existing plotting code.
+storeData.exclude_freq = false(tot_eps,nnn,settings.INPUT.proc_freqs);
+storeData.cs_found_freq = false(tot_eps,nnn,settings.INPUT.proc_freqs);
+storeData.phase_predicted_freq = false(tot_eps,nnn,settings.INPUT.proc_freqs);
+storeData.phase_prediction_length_freq = zeros(tot_eps,nnn,settings.INPUT.proc_freqs,'uint8');
+storeData.phase_prediction_sigma_m_freq = NaN(tot_eps,nnn,settings.INPUT.proc_freqs);
+storeData.phase_prediction_rejected_freq = false(tot_eps,nnn,settings.INPUT.proc_freqs);
+storeData.phase_prediction_cs_suppressed = false(tot_eps,nnn);
+storeData.cold_start_age = zeros(tot_eps,1);
+storeData.cold_start_hold_count = zeros(tot_eps,1);
+storeData.cold_start_initialized_count = zeros(tot_eps,1);
+storeData.cold_start_code_downweighted = zeros(tot_eps,1);
+storeData.cold_start_code_weight_min = ones(tot_eps,1);
+% RAIM stage 2 diagnostics. These fields remain NaN/false when disabled.
+storeData.raim_available = false(tot_eps,1);
+storeData.raim_action_code = zeros(tot_eps,1,'uint8');
+storeData.raim_action_satellite = NaN(tot_eps,1);
+storeData.raim_action_frequency = zeros(tot_eps,1,'uint8');
+storeData.raim_action_post_ratio = NaN(tot_eps,1);
+storeData.raim_action_geometry_ratio = NaN(tot_eps,1);
+storeData.raim_pass = false(tot_eps,1);
+storeData.raim_status_code = zeros(tot_eps,1,'uint8');
+storeData.raim_statistic = NaN(tot_eps,1);
+storeData.raim_threshold = NaN(tot_eps,1);
+storeData.raim_pfa_global = NaN(tot_eps,1);
+storeData.raim_dof = zeros(tot_eps,1,'uint16');
+storeData.raim_n_observations = zeros(tot_eps,1,'uint16');
+storeData.raim_n_parameters = zeros(tot_eps,1,'uint16');
+storeData.raim_max_standardized_residual = NaN(tot_eps,1);
+storeData.raim_candidate_satellite = NaN(tot_eps,1);
+storeData.raim_candidate_frequency = zeros(tot_eps,1,'uint8');
+storeData.raim_observed_freq = false(tot_eps,nnn,settings.INPUT.proc_freqs);
+storeData.raim_residual_m_freq = NaN(tot_eps,nnn,settings.INPUT.proc_freqs,'single');
+storeData.raim_standardized_residual_freq = NaN(tot_eps,nnn,settings.INPUT.proc_freqs,'single');
 % DOPs
 storeData.PDOP = zeros(tot_eps,1);
 storeData.HDOP = zeros(tot_eps,1);
@@ -431,5 +466,3 @@ if settings.EXP.model_save
     model_save.Rot_X = zeros(tot_eps,nnn,3);   	% Sat Position after correcting the earth rotation during runtime tau
     model_save.Rot_V = zeros(tot_eps,nnn,3);   	% Sat Velocity after correcting the earth rotation during runtime tau
 end
-
-

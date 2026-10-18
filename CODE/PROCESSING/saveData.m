@@ -70,6 +70,45 @@ end
 
 %% adjustment variables
 storeData.float(q) = bool_float;    % valid float solution in current epoch?
+if isfield(Epoch, 'cold_start_age'); storeData.cold_start_age(q) = Epoch.cold_start_age; end
+if isfield(Epoch, 'cold_start_hold_count'); storeData.cold_start_hold_count(q) = Epoch.cold_start_hold_count; end
+if isfield(Epoch, 'cold_start_initialized_count'); storeData.cold_start_initialized_count(q) = Epoch.cold_start_initialized_count; end
+if isfield(Epoch, 'cold_start_code_downweighted'); storeData.cold_start_code_downweighted(q) = Epoch.cold_start_code_downweighted; end
+if isfield(Epoch, 'cold_start_code_weight_min'); storeData.cold_start_code_weight_min(q) = Epoch.cold_start_code_weight_min; end
+if isfield(Epoch, 'raim')
+    d = Epoch.raim;
+    storeData.raim_available(q) = logical(d.available);
+    storeData.raim_pass(q) = logical(d.pass);
+    storeData.raim_status_code(q) = raimStatusCode(d.status);
+    storeData.raim_statistic(q) = d.statistic;
+    storeData.raim_threshold(q) = d.threshold;
+    storeData.raim_pfa_global(q) = d.pfa_global;
+    storeData.raim_dof(q) = uint16(max(0,d.dof));
+    storeData.raim_n_observations(q) = uint16(max(0,d.n_observations));
+    storeData.raim_n_parameters(q) = uint16(max(0,d.n_parameters));
+    storeData.raim_max_standardized_residual(q) = d.max_standardized_residual;
+    storeData.raim_candidate_satellite(q) = d.candidate_satellite;
+    storeData.raim_candidate_frequency(q) = uint8(max(0,d.candidate_frequency));
+    for k_raim = 1:numel(d.satellite)
+        prn_raim = d.satellite(k_raim);
+        frq_raim = d.frequency(k_raim);
+        if prn_raim >= 1 && prn_raim <= size(storeData.raim_observed_freq,2) && ...
+                frq_raim >= 1 && frq_raim <= size(storeData.raim_observed_freq,3)
+            storeData.raim_observed_freq(q,prn_raim,frq_raim) = true;
+            storeData.raim_residual_m_freq(q,prn_raim,frq_raim) = single(d.residual_m(k_raim));
+            storeData.raim_standardized_residual_freq(q,prn_raim,frq_raim) = ...
+                single(d.standardized_residual(k_raim));
+        end
+    end
+end
+if isfield(Epoch,'raim_action')
+    action=Epoch.raim_action;
+    storeData.raim_action_code(q)=uint8(action.code);
+    storeData.raim_action_satellite(q)=action.satellite;
+    storeData.raim_action_frequency(q)=uint8(action.frequency);
+    storeData.raim_action_post_ratio(q)=action.post_ratio;
+    storeData.raim_action_geometry_ratio(q)=action.geometry_ratio;
+end
 if strcmpi(settings.PROC.method,'Code + Phase')
     % float ambiguities
 	N_temp = reshape(Adjust.param((NO_PARAM+1):(NO_PARAM+s_f)), 1, no_sats, proc_frqs);
@@ -339,6 +378,32 @@ storeData.VDOP(q) = sqrt(Qneu(3,3));
 % ||| loses information! cs_found and exclude have #columns = processed frqs
 storeData.cs_found(q,prns) = any(Epoch.cs_found, 2); 	% true if cycle slip found on any frequency
 storeData.exclude(q,prns)  = any(Epoch.exclude, 2);     % true if satellite's observation excluded on any frequency
+if isfield(storeData, 'cs_found_freq')
+    storeData.cs_found_freq(q,prns,1:size(Epoch.cs_found,2)) = ...
+        reshape(logical(Epoch.cs_found),1,numel(prns),size(Epoch.cs_found,2));
+end
+if isfield(storeData, 'exclude_freq')
+    storeData.exclude_freq(q,prns,1:size(Epoch.exclude,2)) = ...
+        reshape(logical(Epoch.exclude),1,numel(prns),size(Epoch.exclude,2));
+end
+if isfield(Epoch,'phase_predicted') && isfield(storeData,'phase_predicted_freq')
+    nf_pred = size(Epoch.phase_predicted,2);
+    storeData.phase_predicted_freq(q,prns,1:nf_pred) = ...
+        reshape(logical(Epoch.phase_predicted),1,numel(prns),nf_pred);
+    storeData.phase_prediction_length_freq(q,prns,1:nf_pred) = ...
+        reshape(uint8(Epoch.phase_prediction_length),1,numel(prns),nf_pred);
+    storeData.phase_prediction_sigma_m_freq(q,prns,1:nf_pred) = ...
+        reshape(Epoch.phase_prediction_sigma_m,1,numel(prns),nf_pred);
+    if isfield(Epoch,'phase_prediction_rejected')
+        storeData.phase_prediction_rejected_freq(q,prns,1:nf_pred) = ...
+            reshape(logical(Epoch.phase_prediction_rejected),1,numel(prns),nf_pred);
+    end
+end
+if isfield(Epoch,'phase_prediction_cs_suppressed') && ...
+        isfield(storeData,'phase_prediction_cs_suppressed')
+    storeData.phase_prediction_cs_suppressed(q,prns) = ...
+        logical(Epoch.phase_prediction_cs_suppressed);
+end
 
 
 %% save satellite status
@@ -402,5 +467,17 @@ if settings.EXP.model_save
 end
 
 
-
-
+function code = raimStatusCode(status)
+switch lower(char(status))
+    case 'pass';                    code = uint8(1);
+    case 'fault_detected';          code = uint8(2);
+    case 'insufficient_redundancy'; code = uint8(3);
+    case 'no_code_rows';            code = uint8(4);
+    case 'missing_adjustment_data'; code = uint8(5);
+    case 'unsupported_mode';        code = uint8(6);
+    case 'missing_state_covariance'; code = uint8(7);
+    case 'unsupported_test_model'; code = uint8(8);
+    case 'invalid_covariance'; code = uint8(9);
+    case 'ill_conditioned_covariance'; code = uint8(10);
+    otherwise;                      code = uint8(0);
+end

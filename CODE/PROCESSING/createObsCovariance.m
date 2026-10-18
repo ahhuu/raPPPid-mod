@@ -50,7 +50,9 @@ if strcmp(settings.IONO.model, '2-Frequency-IF-LCs') || strcmp(settings.IONO.mod
     if ~settings.ADJ.bool_std_frqs
         % same standard deviation on each frequency
         P_code  = settings.ADJ.var_code ./ P_fac_3;     % variance for all code observations and frequencies
-        P_phase = settings.ADJ.var_phase./ P_fac_3; 	% variance for all phase observations and frequencies
+        VAR_phase = settings.ADJ.var_phase .* ones(n,3);
+        VAR_phase = applyPredictedPhaseVariance(VAR_phase, Epoch);
+        P_phase = VAR_phase' ./ P_fac_3; 	% variance for all phase observations and frequencies
     else
         % frequency-specific standard deviations for code and phase defined
         VAR_code = ...      % code observations' variance matrix, row = satellite, column = frequency
@@ -58,14 +60,17 @@ if strcmp(settings.IONO.model, '2-Frequency-IF-LCs') || strcmp(settings.IONO.mod
             Epoch.glo  * settings.ADJ.var_code_frq(2, :) + ...
             Epoch.gal  * settings.ADJ.var_code_frq(3, :) + ...
             Epoch.bds  * settings.ADJ.var_code_frq(4, :);
+        VAR_code = applyCodeSnrF2Std(VAR_code, Epoch, settings);
         P_code = VAR_code' ./ P_fac_3;      % scale code variances with weighting function
         VAR_phase = ...     % phase observations' variance matrix, row = satellite, column = frequency
             Epoch.gps  * settings.ADJ.var_phase_frq(1, :) + ...
             Epoch.glo  * settings.ADJ.var_phase_frq(2, :) + ...
             Epoch.gal  * settings.ADJ.var_phase_frq(3, :) + ...
             Epoch.bds  * settings.ADJ.var_phase_frq(4, :);
+        VAR_phase = applyPredictedPhaseVariance(VAR_phase, Epoch);
         P_phase = VAR_phase' ./ P_fac_3;    % scale phase variances with weighting function
     end
+    P_code = scaleColdStartCodeVariance(P_code, Epoch, n_inp, n);
     
     % build covariance matrix of uncombined observations for all frequencies
     fac = [P_code; P_phase];
@@ -124,7 +129,10 @@ else
     if ~settings.ADJ.bool_std_frqs
         % same standard deviation on each frequency
         P_code  = settings.ADJ.var_code ./ P_fac(:)';
-        P_phase = settings.ADJ.var_phase./ P_fac(:)';
+        VAR_phase = settings.ADJ.var_phase .* ones(n,n_inp);
+        VAR_phase = applyPredictedPhaseVariance(VAR_phase, Epoch);
+        P_phase = VAR_phase ./ P_fac;
+        P_phase = P_phase(:)';
     else
         % frequency-specific standard deviations for code and phase defined
         VAR_code = ...      % code observations' variance matrix, row = satellite, column = frequency
@@ -132,6 +140,7 @@ else
             Epoch.glo  * settings.ADJ.var_code_frq(2, 1:n_inp) + ...
             Epoch.gal  * settings.ADJ.var_code_frq(3, 1:n_inp) + ...
             Epoch.bds  * settings.ADJ.var_code_frq(4, 1:n_inp);
+        VAR_code = applyCodeSnrF2Std(VAR_code, Epoch, settings);
         P_code = VAR_code ./ P_fac;      % scale code variances with weighting function
         P_code = P_code(:)';
         VAR_phase = ...     % phase observations' variance matrix, row = satellite, column = frequency
@@ -139,9 +148,11 @@ else
             Epoch.glo  * settings.ADJ.var_phase_frq(2, 1:n_inp) + ...
             Epoch.gal  * settings.ADJ.var_phase_frq(3, 1:n_inp) + ...
             Epoch.bds  * settings.ADJ.var_phase_frq(4, 1:n_inp);
+        VAR_phase = applyPredictedPhaseVariance(VAR_phase, Epoch);
         P_phase = VAR_phase ./ P_fac;    % scale phase variances with weighting function
         P_phase = P_phase(:)';
     end
+    P_code = scaleColdStartCodeVariance(P_code, Epoch, n_inp, n);
     
     
     fac = [P_code; P_phase];
@@ -224,4 +235,49 @@ end
 Adjust.P = P; 
 Adjust.Q = Q;
 
+end
+
+function VAR_phase = applyPredictedPhaseVariance(VAR_phase, Epoch)
+% Prediction metadata contains one-sigma uncertainty in metres. Override the
+% raw phase variance before LC covariance propagation; real phase is unchanged.
+if ~isfield(Epoch, 'phase_predicted') || ~isfield(Epoch, 'phase_prediction_sigma_m')
+    return;
+end
+nf = min(size(VAR_phase,2), size(Epoch.phase_predicted,2));
+mask = Epoch.phase_predicted(:,1:nf);
+sigma = Epoch.phase_prediction_sigma_m(:,1:nf);
+valid = mask & isfinite(sigma) & sigma > 0;
+part = VAR_phase(:,1:nf);
+part(valid) = sigma(valid).^2;
+VAR_phase(:,1:nf) = part;
+end
+
+function P_code = scaleColdStartCodeVariance(P_code, Epoch, n_inp, n_sats)
+if ~isfield(Epoch, 'cold_start_code_weight') || isempty(Epoch.cold_start_code_weight)
+    return;
+end
+
+weights = Epoch.cold_start_code_weight;
+if size(weights,1) ~= n_sats
+    return;
+end
+weights = max(eps, min(1, weights));
+
+if isvector(P_code)
+    use = weights(:,1:min(n_inp,size(weights,2)));
+    if numel(P_code) == numel(use)
+        P_code = P_code ./ use(:)';
+    end
+elseif size(P_code,2) == n_sats
+    use = ones(size(P_code));
+    nf = min([n_inp, size(weights,2), size(P_code,1)]);
+    use(1:nf,:) = weights(:,1:nf)';
+    P_code = P_code ./ use;
+elseif size(P_code,1) == n_sats
+    use = ones(size(P_code));
+    nf = min([n_inp, size(weights,2), size(P_code,2)]);
+    use(:,1:nf) = weights(:,1:nf);
+    P_code = P_code ./ use;
+end
+end
 
