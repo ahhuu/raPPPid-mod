@@ -25,3 +25,13 @@ AGENTS.md
 # Accidental local file
 tatus
 
+# Local experiment evidence and pre-change source snapshots (never bulk-add)
+/tmp/
+/output/
+/*.pdf
+/抗差卡尔曼滤波.png
+/PPP*分析_*.md
+/MW_GF_组合策略实施方案.md
+/TDCP_SNR_migration_plan.md
+/周跳探测方案：TDCP验后残差.md
+
